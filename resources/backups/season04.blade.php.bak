@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Season 04 — Demo</title>
+  @vite(['resources/css/season04.css', 'resources/js/app.js'])
+</head>
+<body>
+
+  <nav class="ss04-nav">
+    <div class="brand">BRAND</div>
+    <div class="links">
+      <a href="#">Shop</a>
+      <a href="#">Editorial</a>
+    </div>
+    <div class="icons">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 6h15l-1.5 9h-13z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="18" cy="19" r="1" fill="currentColor"/></svg>
+    </div>
+  </nav>
+
+  <main>
+    <section class="ss04-hero">
+      <div class="hero-inner ss04-grid">
+        <div style="grid-column:1/13;">
+          <h1 class="split-headline"><span class="line1">SEASON</span><br><span class="line2">04</span></h1>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-left">SKU 0001 • 01 • 2026</div>
+          <button class="cta">Shop Now</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="manifesto ss04-grid">
+      <div class="label">Manifesto</div>
+      <div class="copy">A technical utilitarian editorial voice with <span class="highlight">raw textures</span> and <span class="highlight">massive type</span>.</div>
+    </section>
+
+    <section class="spec ss04-grid" style="padding:48px 0;">
+      <div class="label">Specification</div>
+      <div class="copy" style="grid-column:5/13; text-transform:none; font-size:16px; font-weight:400; text-indent:0; color:var(--text); line-height:1.6;">
+        <h3 style="text-transform:uppercase; letter-spacing:0.08em; font-size:12px; color:var(--muted);">Summary</h3>
+        <p>A high-fashion brutalist design system called 'Season 04', utilizing massive typography, raw noise textures, and a technical-utilitarian layout. It blends luxury editorial sensibilities with harsh, industrial design elements like high-contrast grayscale imagery and neon acid-green micro-interactions.</p>
+
+        <h3 style="text-transform:uppercase; letter-spacing:0.08em; font-size:12px; color:var(--muted); margin-top:16px;">Style</h3>
+        <p>The style is defined by a 'Raw' aesthetic: a neutral beige background (<strong>#E3E2DE</strong>) paired with deep brownish-black (<strong>#1B0E0D</strong>) and burnt red (<strong>#C72A09</strong>) accents. A constant noise texture (0.08 opacity) is applied over the entire interface. Typography features heavy use of 'Clash Grotesk' for massive, tight-tracked headings and 'General Sans' or Mono fonts for technical metadata. Animations are swift and purposeful, including image scaling and neon-green hover states (<strong>#31EF07</strong>).</p>
+
+        <h3 style="text-transform:uppercase; letter-spacing:0.08em; font-size:12px; color:var(--muted); margin-top:16px;">Spec</h3>
+        <p>Create a design with a 'Modern Brutalist' aesthetic. Use a background color of <strong>#E3E2DE</strong> and primary text in <strong>#1B0E0D</strong>. Apply a persistent noise texture overlay (SVG fractalNoise at 0.08 opacity, mix-blend-mode: multiply). Typography: Use 'Clash Grotesk' for display headings with <strong>font-weight: 700</strong>, <strong>letter-spacing: -0.04em</strong>, and <strong>leading: 0.85</strong>. For body and technical info, use 'General Sans' or a monospace font for price/data points. Accent colors: <strong>#C72A09</strong> (Primary accent/Action) and <strong>#31EF07</strong> (Neon Green for micro-interactions/hovers). Links should feature a custom hover animation using a 2px neon green underline that scales from 0 to 1 with <em>cubic-bezier(0.165, 0.84, 0.44, 1)</em>. Images must be high-contrast, often grayscale, with a hover scale effect of 1.05.</p>
+
+        <h3 style="text-transform:uppercase; letter-spacing:0.08em; font-size:12px; color:var(--muted); margin-top:16px;">Layout & Structure</h3>
+        <p>The layout uses a 12-column asymmetric grid. It features massive, screen-filling typography dividers and a mix of full-width blocks and offset product columns to create a sense of 'ordered chaos'.</p>
+
+        <h4 style="margin-top:12px;">Navigation</h4>
+        <p>Sticky top navigation using <code>mix-blend-mode: difference</code> to ensure legibility against any background. Left-aligned branding in uppercase bold (24px), centered text links (Shop, Editorial) with neon-green hover-underline animations, and right-aligned icons (Search, Cart) in 24px size. Text color should be <strong>#E3E2DE</strong> to work with the blend mode.</p>
+
+        <h4 style="margin-top:12px;">Hero Section</h4>
+        <p>Full-screen (100vh) hero section with a dark background (<strong>#1B0E0D</strong>). Background image should be grayscale and high-contrast at 60% opacity. Bottom-aligned content containing a thin <strong>#E3E2DE</strong> border, technical metadata in monospace tracking-widest, and a large burnt-orange (<strong>#C72A09</strong>) CTA button. The main headline must be massive (16vw on mobile, 13.5vw on desktop) using Clash Grotesk, with parts of the text indented (e.g., 20vw) to create negative space.</p>
+
+        <h4 style="margin-top:12px;">Manifesto Section</h4>
+        <p>A 12-column grid section. Columns 1-4 contain a small uppercase label (Manifesto) above a top border. Columns 5-12 contain large-scale editorial text (32px-48px) in uppercase font-medium with a significant paragraph indent (approx 3rem). Highlight key phrases in deep brown (<strong>#61220F</strong>).</p>
+
+        <h4 style="margin-top:12px;">Product Grid & Components</h4>
+        <p>Asymmetrical 12-column grid. Items vary in width and vertical offset. Product details below images include a bold uppercase title and a monospace price tag separated by a border-bottom that changes to burnt orange on hover. Include a 'Quick View' badge in neon green that appears on hover. Special components: Neon Interaction Badge (sharp-edged rectangle, background <strong>#31EF07</strong>, 10px bold uppercase <strong>#1B0E0D</strong> text) and a Texture Overlay (SVG fractalNoise baseFrequency='0.9' opacity 0.08, mix-blend-mode multiply).</p>
+
+        <p style="margin-top:16px; font-style:italic; color:var(--muted)">This page is using your Season 04 content and visual spec — you can later replace any placeholder images or copy directly in this view.</p>
+      </div>
+    </section>
+
+    <section class="category-divider"><h2>OUTERWEAR</h2></section>
+
+    <section class="product-grid">
+      <div class="product product--a">
+        <div class="img-wrap">
+          <img src="https://images.unsplash.com/photo-1520975910121-7f10631d3b83?q=80&w=1000&auto=format&fit=crop&crop=entropy" alt="Product A">
+          <span class="neon-badge">Quick View</span>
+        </div>
+        <div class="details"><div class="title">Heavy Coat</div><div class="price">$420</div></div>
+      </div>
+
+      <div class="product product--b">
+        <div class="img-wrap">
+          <img src="https://images.unsplash.com/photo-1542060748-51f6c9e3183d?q=80&w=800&auto=format&fit=crop&crop=entropy" alt="Product B">
+          <span class="neon-badge">Quick View</span>
+        </div>
+        <div class="details"><div class="title">Shell Jacket</div><div class="price">$280</div></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="ss04-footer">
+    <div class="cols">
+      <div><h4>Shop</h4><p>Men • Women • Editorial</p></div>
+      <div><h4>Company</h4><p>About • Press • Careers</p></div>
+      <div><h4>Help</h4><p>Shipping • Returns</p></div>
+      <div>
+        <h4>Newsletter</h4>
+        <div class="newsletter">
+          <input placeholder="Email address" aria-label="Email">
+          <button>Send</button>
+        </div>
+      </div>
+    </div>
+    <div class="ghost-brand">BRAND</div>
+  </footer>
+
+  <div class="ss04-noise" aria-hidden="true">
+    <svg preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <filter id="ss04-noise-filter"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter>
+      <rect width="100%" height="100%" filter="url(#ss04-noise-filter)" fill="#000"/>
+    </svg>
+  </div>
+
+  </body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+
+        <title>{{ config('app.name', 'SwapShip') }}</title>
+
+        <!-- Scripts -->
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        
+        <style>
+            /* Additional Auth-specific styles */
+            .auth-container {
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                padding: 2rem;
+                overflow: hidden;
+            }
+            .auth-bg-glow {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 800px;
+                height: 800px;
+                background: radial-gradient(circle, rgba(0, 217, 255, 0.1) 0%, rgba(255, 0, 255, 0.05) 40%, rgba(10, 14, 39, 0) 70%);
+                z-index: 0;
+                pointer-events: none;
+            }
+            .auth-card {
+                width: 100%;
+                max-width: 450px;
+                position: relative;
+                z-index: 10;
+                padding: 3rem;
+                border-radius: 24px;
+                background: rgba(26, 31, 58, 0.6);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid var(--glass-border);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            }
+            .auth-input {
+                width: 100%;
+                background: rgba(10, 14, 39, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 0.875rem 1rem;
+                color: var(--text-main);
+                font-family: var(--font-body);
+                font-size: 1rem;
+                transition: var(--transition);
+                outline: none;
+            }
+            .auth-input:focus {
+                border-color: var(--accent-cyan);
+                box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.2);
+            }
+            .auth-label {
+                display: block;
+                color: var(--text-muted);
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin-bottom: 0.5rem;
+            }
+            .auth-logo {
+                font-family: var(--font-display);
+                font-weight: 800;
+                font-size: 2.5rem;
+                margin-bottom: 2rem;
+                text-align: center;
+                background: var(--accent-gradient);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                letter-spacing: -0.02em;
+            }
+        </style>
+    </head>
+    <body class="antialiased">
+        <div class="auth-container">
+            <!-- Back to Home Button -->
+            <a href="{{ route('home') }}" class="btn btn-outline" style="position: absolute; top: 2rem; left: 2rem; z-index: 50; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                &larr; Back to Home
+            </a>
+
+            <div class="auth-bg-glow"></div>
+            
+            <a href="/" style="text-decoration: none;">
+                <x-application-logo style="margin-bottom: 2rem; justify-content: center;" />
+            </a>
+
+            <div class="auth-card">
+                {{ $slot }}
+            </div>
+        </div>
+    </body>
+</html>

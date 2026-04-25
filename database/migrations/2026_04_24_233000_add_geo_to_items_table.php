@@ -1,0 +1,25 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('items', function (Blueprint $table) {
+            $table->decimal('location_lat', 10, 7)->nullable()->after('location');
+            $table->decimal('location_lng', 10, 7)->nullable()->after('location_lat');
+            $table->index(['location_lat', 'location_lng']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('items', function (Blueprint $table) {
+            $table->dropIndex(['location_lat', 'location_lng']);
+            $table->dropColumn(['location_lat', 'location_lng']);
+        });
+    }
+};
