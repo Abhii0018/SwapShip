@@ -31,71 +31,104 @@
     >
     <div class="explore-ambient explore-ambient-a" aria-hidden="true"></div>
     <div class="explore-ambient explore-ambient-b" aria-hidden="true"></div>
-    <section class="explore-header card">
-        <div>
-            <p class="explore-eyebrow">Explore Items</p>
-            <h1 class="explore-title">Find the right item faster</h1>
-            <p class="explore-subtitle">Search by name, category, or keyword. Filter by type, location, and condition.</p>
-            <div class="explore-quick-pills">
-                <button type="button" class="explore-quick-pill" @click="filters.sort = 'latest'; fetchItems()">Newest first</button>
-                <button type="button" class="explore-quick-pill" @click="filters.type = 'exchange'; fetchItems()">Exchange only</button>
-                <button type="button" class="explore-quick-pill" @click="filters.type = 'sell'; fetchItems()">For sale</button>
-                <button type="button" class="explore-quick-pill" @click="filters.recommended_first = filters.recommended_first ? '' : '1'; fetchItems()">
-                    <span x-text="filters.recommended_first ? 'Recommended ON' : 'Recommended OFF'"></span>
-                </button>
+
+    <section class="explore-header card explore-header-compact">
+        <div class="explore-head-top">
+            <div>
+                <p class="explore-eyebrow">Explore</p>
+                <h1 class="explore-title">Find what you need</h1>
             </div>
+            <div class="explore-count"><span x-text="total"></span> items</div>
         </div>
-        <div class="explore-count"><span x-text="total"></span> items</div>
+        <p class="explore-subtitle explore-subtitle-desktop">Search by name, category, or keyword. Filter by type, location, and condition.</p>
     </section>
 
-    <section class="card explore-controls">
-        <form method="GET" action="{{ route('items.index') }}" class="explore-form" @submit.prevent="fetchItems()">
-            <div class="explore-block">
-                <label for="search">Search</label>
-                <input id="search" name="search" value="{{ request('search') }}" x-model="filters.search" @input.debounce.350ms="fetchItems()" placeholder="Search item name, category, keyword">
+    <section class="card explore-searchbar">
+        <div class="explore-searchbar-row">
+            <div class="explore-search-input">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                <input id="search" name="search" value="{{ request('search') }}" x-model="filters.search" @input.debounce.350ms="fetchItems()" placeholder="Search items, brands, categories...">
+                <button type="button" class="explore-search-clear" x-show="filters.search" @click="filters.search=''; fetchItems()" aria-label="Clear">×</button>
+            </div>
+            <button type="button" class="explore-filter-trigger" @click="filterPanelOpen = true" aria-label="Open filters">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="6" y1="12" x2="18" y2="12"></line><line x1="9" y1="18" x2="15" y2="18"></line></svg>
+                <span class="explore-filter-trigger-label">Filters</span>
+                <span class="explore-filter-badge" x-show="activeFilterCount() > 0" x-text="activeFilterCount()" x-cloak></span>
+            </button>
+        </div>
+
+        <div class="explore-quick-scroll">
+            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.sort === 'latest' }" @click="filters.sort = 'latest'; fetchItems()">Newest</button>
+            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.sort === 'price_low' }" @click="filters.sort = 'price_low'; fetchItems()">Price: low to high</button>
+            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.sort === 'price_high' }" @click="filters.sort = 'price_high'; fetchItems()">Price: high to low</button>
+            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.type === 'sell' }" @click="filters.type = filters.type === 'sell' ? '' : 'sell'; fetchItems()">For sale</button>
+            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.type === 'exchange' }" @click="filters.type = filters.type === 'exchange' ? '' : 'exchange'; fetchItems()">Exchange</button>
+            <button type="button" class="explore-quick-pill" :class="{ 'is-active': !!filters.recommended_first }" @click="filters.recommended_first = filters.recommended_first ? '' : '1'; fetchItems()">Recommended</button>
+        </div>
+
+        <div class="explore-active-chips" x-show="activeFilterCount() > 0" x-cloak>
+            <template x-for="chip in activeChips()" :key="'chip-' + chip.key">
+                <button type="button" class="explore-active-chip" @click="clearFilter(chip.key)">
+                    <span x-text="chip.label"></span>
+                    <span aria-hidden="true">×</span>
+                </button>
+            </template>
+            <button type="button" class="explore-active-chip explore-active-chip-clear" @click="reset()">Clear all</button>
+        </div>
+    </section>
+
+    <div class="explore-filter-overlay" x-show="filterPanelOpen" x-transition.opacity.duration.200ms @click="filterPanelOpen = false" x-cloak></div>
+    <aside class="explore-filter-panel" :class="{ 'is-open': filterPanelOpen }" x-cloak>
+        <header class="explore-filter-head">
+            <div>
+                <p class="explore-filter-title">Filters</p>
+                <p class="explore-filter-sub" x-text="`${total} items match`"></p>
+            </div>
+            <button type="button" class="explore-filter-close" @click="filterPanelOpen = false" aria-label="Close">×</button>
+        </header>
+
+        <form method="GET" action="{{ route('items.index') }}" class="explore-form" @submit.prevent="fetchItems(); filterPanelOpen = false">
+            <div class="explore-block explore-field" @click.outside="closeSuggestions()">
+                <label for="category">Category</label>
+                <input
+                    id="category"
+                    name="category"
+                    x-model="filters.category"
+                    @focus="openSuggestions('category')"
+                    @input="openSuggestions('category')"
+                    @input.debounce.250ms="fetchItems()"
+                    placeholder="Mobile, Electronics, Books..."
+                    autocomplete="off"
+                >
+                <div class="explore-suggestion-box" x-show="isSuggestionOpen('category')" x-transition.opacity.duration.150ms>
+                    <template x-for="option in filteredSuggestions('category')" :key="'category-' + option">
+                        <button type="button" class="explore-suggestion-item" @click="selectSuggestion('category', option)" x-text="option"></button>
+                    </template>
+                    <p class="explore-suggestion-empty" x-show="!filteredSuggestions('category').length">No matching categories</p>
+                </div>
             </div>
 
-            <div class="explore-grid">
-                <div class="explore-block explore-field" @click.outside="closeSuggestions()">
-                    <label for="category">Category</label>
-                    <input
-                        id="category"
-                        name="category"
-                        x-model="filters.category"
-                        @focus="openSuggestions('category')"
-                        @input="openSuggestions('category')"
-                        @input.debounce.250ms="fetchItems()"
-                        placeholder="Type category (e.g. Mobile, Electronics, Books)"
-                        autocomplete="off"
-                    >
-                    <div class="explore-suggestion-box" x-show="isSuggestionOpen('category')" x-transition.opacity.duration.150ms>
-                        <template x-for="option in filteredSuggestions('category')" :key="'category-' + option">
-                            <button type="button" class="explore-suggestion-item" @click="selectSuggestion('category', option)" x-text="option"></button>
-                        </template>
-                        <p class="explore-suggestion-empty" x-show="!filteredSuggestions('category').length">No matching categories</p>
-                    </div>
+            <div class="explore-block explore-field" @click.outside="closeSuggestions()">
+                <label for="location">Location</label>
+                <input
+                    id="location"
+                    name="location"
+                    x-model="filters.location"
+                    @focus="openSuggestions('location')"
+                    @input="openSuggestions('location')"
+                    @input.debounce.250ms="fetchItems()"
+                    placeholder="City or area"
+                    autocomplete="off"
+                >
+                <div class="explore-suggestion-box" x-show="isSuggestionOpen('location')" x-transition.opacity.duration.150ms>
+                    <template x-for="option in filteredSuggestions('location')" :key="'location-' + option">
+                        <button type="button" class="explore-suggestion-item" @click="selectSuggestion('location', option)" x-text="option"></button>
+                    </template>
+                    <p class="explore-suggestion-empty" x-show="!filteredSuggestions('location').length">No matching locations</p>
                 </div>
+            </div>
 
-                <div class="explore-block explore-field" @click.outside="closeSuggestions()">
-                    <label for="location">Location</label>
-                    <input
-                        id="location"
-                        name="location"
-                        x-model="filters.location"
-                        @focus="openSuggestions('location')"
-                        @input="openSuggestions('location')"
-                        @input.debounce.250ms="fetchItems()"
-                        placeholder="Type city or area (e.g. New Delhi, Old Delhi)"
-                        autocomplete="off"
-                    >
-                    <div class="explore-suggestion-box" x-show="isSuggestionOpen('location')" x-transition.opacity.duration.150ms>
-                        <template x-for="option in filteredSuggestions('location')" :key="'location-' + option">
-                            <button type="button" class="explore-suggestion-item" @click="selectSuggestion('location', option)" x-text="option"></button>
-                        </template>
-                        <p class="explore-suggestion-empty" x-show="!filteredSuggestions('location').length">No matching locations</p>
-                    </div>
-                </div>
-
+            <div class="explore-grid explore-grid-pair">
                 <div class="explore-block">
                     <label for="type">Type</label>
                     <select id="type" name="type" x-model="filters.type" @change="fetchItems()">
@@ -117,15 +150,6 @@
                 </div>
 
                 <div class="explore-block">
-                    <label for="sort">Sort by</label>
-                    <select id="sort" name="sort" x-model="filters.sort" @change="fetchItems()">
-                        <option value="latest" @selected($sort === 'latest')>Latest</option>
-                        <option value="price_low" @selected($sort === 'price_low')>Price: Low to high</option>
-                        <option value="price_high" @selected($sort === 'price_high')>Price: High to low</option>
-                    </select>
-                </div>
-
-                <div class="explore-block">
                     <label for="min_price">Min price (INR)</label>
                     <input id="min_price" name="min_price" type="number" min="0" step="0.01" x-model="filters.min_price" @input.debounce.350ms="fetchItems()">
                 </div>
@@ -136,49 +160,57 @@
                 </div>
 
                 <div class="explore-block">
-                    <label for="distance_km">Distance radius (km)</label>
+                    <label for="sort">Sort by</label>
+                    <select id="sort" name="sort" x-model="filters.sort" @change="fetchItems()">
+                        <option value="latest" @selected($sort === 'latest')>Latest</option>
+                        <option value="price_low" @selected($sort === 'price_low')>Price: Low to high</option>
+                        <option value="price_high" @selected($sort === 'price_high')>Price: High to low</option>
+                    </select>
+                </div>
+
+                <div class="explore-block">
+                    <label for="distance_km">Within</label>
                     <select id="distance_km" name="distance_km" x-model="filters.distance_km" @change="fetchItems()">
                         <option value="">Any distance</option>
-                        <option value="2">Within 2 km</option>
-                        <option value="5">Within 5 km</option>
-                        <option value="10">Within 10 km</option>
-                        <option value="25">Within 25 km</option>
-                        <option value="50">Within 50 km</option>
+                        <option value="2">2 km</option>
+                        <option value="5">5 km</option>
+                        <option value="10">10 km</option>
+                        <option value="25">25 km</option>
+                        <option value="50">50 km</option>
                     </select>
                 </div>
             </div>
 
-            <div class="explore-actions">
-                <button class="btn btn-primary" type="submit">Apply</button>
-                <button class="btn" type="button" @click="useMyLocation()">Use my location</button>
-                <button class="btn" type="button" @click="saveCurrentSearch()">Save this search</button>
-                <button class="btn" type="button" @click="reset()">Reset</button>
-            </div>
+            @if($savedSearches->isNotEmpty())
+                <div class="explore-block">
+                    <label>Saved searches</label>
+                    <div class="explore-saved-list">
+                        <template x-for="saved in savedSearches" :key="saved.id">
+                            <div class="explore-saved-row">
+                                <button type="button" class="explore-quick-pill is-saved" @click="applySavedSearch(saved); filterPanelOpen = false" x-text="saved.name"></button>
+                                <form method="POST" :action="saved.deleteUrl">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="explore-saved-del" aria-label="Delete saved search">×</button>
+                                </form>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            @endif
+
             <input type="hidden" name="user_lat" :value="filters.user_lat">
             <input type="hidden" name="user_lng" :value="filters.user_lng">
             <input type="hidden" name="recommended_first" :value="filters.recommended_first">
         </form>
-    </section>
 
-    @if($savedSearches->isNotEmpty())
-        <section class="card explore-controls" style="margin-top:12px;">
-            <div class="explore-block">
-                <label>Saved searches</label>
-                <div class="explore-quick-pills">
-                    <template x-for="saved in savedSearches" :key="saved.id">
-                        <div style="display:flex; gap:6px; align-items:center;">
-                            <button type="button" class="explore-quick-pill" @click="applySavedSearch(saved)" x-text="saved.name"></button>
-                            <form method="POST" :action="saved.deleteUrl">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn" style="padding:4px 8px;">x</button>
-                            </form>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </section>
-    @endif
+        <footer class="explore-filter-foot">
+            <button class="btn" type="button" @click="reset()">Reset</button>
+            <button class="btn" type="button" @click="useMyLocation()">Near me</button>
+            <button class="btn" type="button" @click="saveCurrentSearch()">Save</button>
+            <button class="btn btn-primary" type="button" @click="filterPanelOpen = false">Show <span x-text="total"></span> items</button>
+        </footer>
+    </aside>
 
     <div class="explore-live-wrap" @click="handlePaginationClick($event)">
         <template x-if="loading">
@@ -210,6 +242,7 @@
             total: initialTotal,
             loading: false,
             activeSuggestion: null,
+            filterPanelOpen: false,
             filters: { ...initialFilters },
             baseFilters: {
                 ...initialFilters,
@@ -379,6 +412,44 @@
 
             applySavedSearch(saved) {
                 this.filters = { ...this.baseFilters, ...(saved.filters || {}) };
+                this.fetchItems();
+            },
+
+            activeFilterKeys() {
+                const ignored = ['sort', 'recommended_first', 'user_lat', 'user_lng'];
+                return Object.entries(this.filters)
+                    .filter(([key, value]) => !ignored.includes(key) && value !== '' && value !== null && value !== undefined)
+                    .map(([key]) => key);
+            },
+
+            activeFilterCount() {
+                return this.activeFilterKeys().length;
+            },
+
+            activeChips() {
+                const labels = {
+                    search: 'Search',
+                    category: 'Category',
+                    location: 'Location',
+                    type: 'Type',
+                    condition: 'Condition',
+                    min_price: 'Min',
+                    max_price: 'Max',
+                    distance_km: 'Within'
+                };
+                return this.activeFilterKeys().map((key) => {
+                    let value = this.filters[key];
+                    if (key === 'min_price' || key === 'max_price') {
+                        value = '\u20B9' + value;
+                    } else if (key === 'distance_km') {
+                        value = value + ' km';
+                    }
+                    return { key, label: `${labels[key] || key}: ${value}` };
+                });
+            },
+
+            clearFilter(key) {
+                this.filters[key] = '';
                 this.fetchItems();
             }
         }));

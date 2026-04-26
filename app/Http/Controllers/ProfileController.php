@@ -71,6 +71,7 @@ class ProfileController extends Controller
     {
         $validated = $request->validate([
             'profile_photo' => ['nullable', 'image', 'max:4096'],
+            'profile_photo_data' => ['nullable', 'string'],
             'avatar_preset' => ['nullable', 'string', Rule::in(self::AVATAR_PRESETS)],
         ]);
 
@@ -82,6 +83,18 @@ class ProfileController extends Controller
             }
             $user->profile_photo_path = $request->file('profile_photo')->store('profile-photos', 'public');
             $user->avatar_preset = null;
+        } elseif (! empty($validated['profile_photo_data']) && preg_match('#^data:image/(jpeg|png|webp);base64,#i', $validated['profile_photo_data'], $m)) {
+            $payload = base64_decode(substr($validated['profile_photo_data'], strpos($validated['profile_photo_data'], ',') + 1), true);
+            if ($payload !== false && strlen($payload) <= 4 * 1024 * 1024) {
+                $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+                $path = 'profile-photos/'.uniqid('cropped_', true).'.'.$ext;
+                Storage::disk('public')->put($path, $payload);
+                if ($user->profile_photo_path) {
+                    Storage::disk('public')->delete($user->profile_photo_path);
+                }
+                $user->profile_photo_path = $path;
+                $user->avatar_preset = null;
+            }
         } elseif (array_key_exists('avatar_preset', $validated)) {
             if (! empty($validated['avatar_preset'])) {
                 $user->avatar_preset = $validated['avatar_preset'];

@@ -4,10 +4,10 @@
         <div class="profile-ambient profile-ambient-b" aria-hidden="true"></div>
         <div class="card profile-hero">
             <div class="profile-hero-top">
-                <div>
+                <div class="profile-hero-headline">
                     <p class="profile-eyebrow">Account setup</p>
                     <h1>Hello, {{ auth()->user()->firstName() }}</h1>
-                    <p>Finish your identity details once to unlock posting items and sending purchase requests.</p>
+                    <p class="profile-hero-subtitle">Finish your identity details once to unlock posting items and sending purchase requests.</p>
                 </div>
                 <form method="POST" action="{{ route('logout') }}" class="profile-logout-form">
                     @csrf
@@ -25,18 +25,18 @@
             </div>
             <div class="profile-hero-tags">
                 <span>Identity Ready</span>
-                <span>Sell & Purchase Unlock</span>
+                <span>Sell &amp; Purchase Unlock</span>
                 <span>Trusted Account</span>
             </div>
         </div>
 
         @include('profile.partials.update-profile-information-form')
 
-        <div class="profile-grid">
-            <section class="card profile-card">
+        <div class="profile-stack">
+            <section class="card profile-card profile-card-secondary">
                 @include('profile.partials.update-password-form')
             </section>
-            <section class="card profile-card">
+            <section class="card profile-card profile-card-secondary">
                 @include('profile.partials.delete-user-form')
             </section>
         </div>

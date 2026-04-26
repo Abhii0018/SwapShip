@@ -1,13 +1,20 @@
 <nav class="nv-nav">
     <div class="nv-nav-inner">
         <a href="{{ route('home') }}" class="nv-logo" aria-label="SwapShip home">
-            <svg class="nv-logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <rect x="3" y="7" width="12" height="22" rx="3" stroke="currentColor" stroke-width="2"/>
-                <rect x="21" y="7" width="12" height="22" rx="3" stroke="currentColor" stroke-width="2"/>
-                <path d="M14 18H22" stroke="currentColor" stroke-width="2"/>
-                <path d="M19 15L22 18L19 21" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span>SWAPSHIP</span>
+            <span class="nv-logo-badge" aria-hidden="true">
+                <svg class="nv-logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="4" y="6" width="28" height="24" rx="5" stroke="currentColor" stroke-width="2.2"/>
+                    <path d="M10 14H20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M17 11L20 14L17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M26 22H16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M19 19L16 22L19 25" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="nv-logo-spark" aria-hidden="true"></span>
+            </span>
+            <span class="nv-logo-word">
+                <span class="nv-logo-word-swap">SWAP</span><span class="nv-logo-word-ship">SHIP</span>
+                <i class="nv-logo-shimmer" aria-hidden="true"></i>
+            </span>
         </a>
         <div class="nv-nav-links">
             <a href="{{ route('home') }}">HOME</a>
@@ -43,13 +50,6 @@
 </nav>
 
 @auth
-    <button type="button" class="nv-mobile-bell js-nav-bell-button" aria-label="Open notifications" aria-expanded="false" aria-controls="nv-notification-popover">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3a6 6 0 0 0-6 6v3.9l-1.75 2.8a1 1 0 0 0 .85 1.53h13.8a1 1 0 0 0 .85-1.53L18 12.9V9a6 6 0 0 0-6-6Zm0 18a2.75 2.75 0 0 0 2.58-1.8h-5.16A2.75 2.75 0 0 0 12 21Z"/>
-        </svg>
-        <span class="nv-bell-dot {{ ($navNotificationCount ?? 0) > 0 ? '' : 'is-hidden' }}" aria-hidden="true"></span>
-    </button>
-
     <aside id="nv-notification-popover" class="nv-notification-popover">
         <div class="nv-notification-head">
             <strong>Notifications</strong>
@@ -82,7 +82,7 @@
         <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>HOME</a>
         <a href="{{ route('items.index') }}" @if(request()->routeIs('items.index')) aria-current="page" @endif>EXPLORE</a>
         <a href="{{ route('chat.index') }}" @if(request()->routeIs('chat.*')) aria-current="page" @endif>CHAT</a>
-        <a href="{{ route('profile.edit') }}" @if(request()->routeIs('profile.*')) aria-current="page" @endif>PROFILE</a>
+        <a href="{{ route('exchanges.index') }}" @if(request()->routeIs('exchanges.*')) aria-current="page" @endif>EXCHANGE</a>
         <a href="{{ route('items.create') }}" @if(request()->routeIs('items.create')) aria-current="page" @endif>ADD</a>
     @endguest
 </nav>

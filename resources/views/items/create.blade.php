@@ -151,6 +151,16 @@
                     </div>
                     <div id="sell-location-map" class="sell-map"></div>
                     <p class="sell-map-note" x-text="mapStatus"></p>
+                    <div class="sell-permission-help" x-show="permissionHelp" x-cloak>
+                        <p class="sell-permission-title">Enable precise location for accuracy</p>
+                        <p class="sell-permission-desc" x-text="permissionHelp"></p>
+                        <ol class="sell-permission-steps">
+                            <template x-for="(step, idx) in permissionSteps" :key="'pstep-' + idx">
+                                <li x-text="step"></li>
+                            </template>
+                        </ol>
+                        <button type="button" class="btn btn-primary" @click="detectCurrentLocation()">Try GPS again</button>
+                    </div>
                 </div>
             </section>
 
@@ -226,6 +236,8 @@
             categorySuggestions: [],
             locationSuggestions: [],
             mapStatus: 'Pin the exact area on map for better trust.',
+            permissionHelp: '',
+            permissionSteps: [],
             locationMode: 'manual',
             titleHint: '',
             selectedImages: [],
@@ -251,7 +263,28 @@
                 this.$watch('form', () => this.saveDraft());
                 this.$nextTick(() => {
                     this.initMap();
+                    this.checkGeoPermission();
                 });
+            },
+
+            async checkGeoPermission() {
+                try {
+                    if (!navigator.permissions || !navigator.permissions.query) return;
+                    const status = await navigator.permissions.query({ name: 'geolocation' });
+                    if (status.state === 'denied') {
+                        this.showPermissionHelp();
+                    }
+                    status.onchange = () => {
+                        if (status.state === 'granted') {
+                            this.permissionHelp = '';
+                            this.permissionSteps = [];
+                        } else if (status.state === 'denied') {
+                            this.showPermissionHelp();
+                        }
+                    };
+                } catch (_) {
+                    // Permissions API not supported (older iOS Safari) — silently ignore.
+                }
             },
 
             saveDraft() {
@@ -504,46 +537,221 @@
             },
 
             detectCurrentLocation() {
-                if (!navigator.geolocation || !this.map) {
-                    this.mapStatus = 'Geolocation is not available in this browser.';
+                if (!this.map) {
+                    this.mapStatus = 'Map is still loading. Please wait a moment.';
+                    return;
+                }
+
+                if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    this.mapStatus = 'Browsers block GPS on insecure pages. Detecting approximate city...';
+                    this.detectByIp(false);
+                    return;
+                }
+
+                if (this.isInAppBrowser()) {
+                    this.mapStatus = 'In-app browser blocks GPS. Detecting approximate city...';
+                    this.permissionHelp = 'Open this page in your real browser for precise GPS:';
+                    this.permissionSteps = [
+                        'Tap the menu (three dots) at the top of the in-app browser.',
+                        'Choose "Open in Chrome / Safari / your browser".',
+                        'On the real browser, allow Location for this site, then come back here.',
+                    ];
+                    this.detectByIp(true);
+                    return;
+                }
+
+                if (!navigator.geolocation) {
+                    this.mapStatus = 'GPS not available. Detecting approximate city...';
+                    this.detectByIp(false);
                     return;
                 }
                 this.mapStatus = 'Detecting your current location...';
 
-                navigator.geolocation.getCurrentPosition(async (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const accuracy = Math.round(position.coords.accuracy || 0);
+                this.requestGeolocationWithFallback(true);
+            },
 
-                    this.form.location_lat = Number(lat).toFixed(7);
-                    this.form.location_lng = Number(lng).toFixed(7);
-                    this.map.setView([lat, lng], 15);
+            requestGeolocationWithFallback(highAccuracy) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => this.handleGeoSuccess(position),
+                    (error) => this.handleGeoError(error, highAccuracy),
+                    {
+                        enableHighAccuracy: highAccuracy,
+                        timeout: highAccuracy ? 25000 : 15000,
+                        maximumAge: highAccuracy ? 0 : 60000,
+                    }
+                );
+            },
 
-                    if (!this.marker) {
-                        this.marker = L.marker([lat, lng]).addTo(this.map);
-                    } else {
-                        this.marker.setLatLng([lat, lng]);
-                    }
+            async handleGeoSuccess(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = Math.round(position.coords.accuracy || 0);
 
-                    await this.reverseLookup(lat, lng);
-                    if (accuracy > 0) {
-                        this.mapStatus = `Location detected (approx ${accuracy}m accuracy).`;
+                this.permissionHelp = '';
+                this.permissionSteps = [];
+                this.form.location_lat = Number(lat).toFixed(7);
+                this.form.location_lng = Number(lng).toFixed(7);
+                this.map.setView([lat, lng], 15);
+
+                if (!this.marker) {
+                    this.marker = L.marker([lat, lng]).addTo(this.map);
+                } else {
+                    this.marker.setLatLng([lat, lng]);
+                }
+
+                await this.reverseLookup(lat, lng);
+                if (accuracy > 0) {
+                    this.mapStatus = `Location detected (approx ${accuracy}m accuracy).`;
+                }
+            },
+
+            async handleGeoError(error, wasHighAccuracy) {
+                const code = error && error.code;
+                if ((code === 2 || code === 3) && wasHighAccuracy) {
+                    this.mapStatus = 'High-accuracy GPS failed. Retrying with normal accuracy...';
+                    this.requestGeolocationWithFallback(false);
+                    return;
+                }
+
+                const denied = code === 1;
+                if (denied) {
+                    this.mapStatus = 'GPS denied. Detecting approximate city from network...';
+                    this.showPermissionHelp();
+                } else if (code === 2) {
+                    this.mapStatus = 'GPS signal unavailable. Detecting approximate city from network...';
+                } else if (code === 3) {
+                    this.mapStatus = 'GPS timed out. Detecting approximate city from network...';
+                } else {
+                    this.mapStatus = 'GPS failed. Detecting approximate city from network...';
+                }
+                await this.detectByIp(denied);
+            },
+
+            isInAppBrowser() {
+                const ua = navigator.userAgent || '';
+                return /Instagram|FBAN|FBAV|FB_IAB|Line\//i.test(ua)
+                    || /Twitter|TwitterAndroid|MicroMessenger|WeChat|Snapchat|LinkedInApp/i.test(ua)
+                    || /TikTok|musical_ly|GSA\//i.test(ua);
+            },
+
+            showPermissionHelp() {
+                const ua = navigator.userAgent || '';
+                const isAndroid = /Android/i.test(ua);
+                const isIOS = /iPhone|iPad|iPod/i.test(ua);
+                const isFirefox = /Firefox|FxiOS/i.test(ua);
+                const isSamsung = /SamsungBrowser/i.test(ua);
+                const isEdge = /Edg|EdgA|EdgiOS/i.test(ua);
+                const isChromeAndroid = isAndroid && /Chrome/i.test(ua) && !/Edg|OPR|SamsungBrowser/i.test(ua);
+                const isSafariIOS = isIOS && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+                const isChromeIOS = isIOS && /CriOS/i.test(ua);
+
+                if (isSafariIOS || isChromeIOS) {
+                    this.permissionHelp = 'iPhone is blocking precise GPS for this site. Enable it in two places:';
+                    this.permissionSteps = [
+                        'iPhone Settings → Privacy & Security → Location Services → ON.',
+                        'Same screen → ' + (isChromeIOS ? 'Chrome' : 'Safari Websites') + ' → While Using the App.',
+                        (isChromeIOS ? 'Chrome' : 'Safari') + ' → tap "AA" / "Aa" in URL bar → Website Settings → Location → Allow.',
+                        'Reload this page and tap "Try GPS again" below.',
+                    ];
+                } else if (isAndroid && isSamsung) {
+                    this.permissionHelp = 'Samsung Internet is blocking precise GPS. Enable it like this:';
+                    this.permissionSteps = [
+                        'Tap the lock icon next to the URL.',
+                        'Tap "Permissions" → Location → Allow.',
+                        'Phone Settings → Apps → Samsung Internet → Permissions → Location → Allow.',
+                        'Reload and tap "Try GPS again" below.',
+                    ];
+                } else if (isAndroid && isFirefox) {
+                    this.permissionHelp = 'Firefox on Android is blocking precise GPS. Enable it like this:';
+                    this.permissionSteps = [
+                        'Tap the menu (three dots) at top right.',
+                        'Settings → Site permissions → Location → Allow.',
+                        'Reload and tap "Try GPS again" below.',
+                    ];
+                } else if (isAndroid && isEdge) {
+                    this.permissionHelp = 'Edge on Android is blocking precise GPS. Enable it like this:';
+                    this.permissionSteps = [
+                        'Tap the lock icon next to the URL.',
+                        'Tap "Permissions" → Location → Allow.',
+                        'Reload and tap "Try GPS again" below.',
+                    ];
+                } else if (isChromeAndroid) {
+                    this.permissionHelp = 'Chrome on Android is blocking precise GPS. Enable it in 4 quick steps:';
+                    this.permissionSteps = [
+                        'Tap the lock icon next to the URL at the top.',
+                        'Tap "Permissions" (or "Site settings").',
+                        'Set "Location" to Allow.',
+                        'Also: phone Settings → Location → ON.',
+                        'Reload and tap "Try GPS again" below.',
+                    ];
+                } else if (isAndroid) {
+                    this.permissionHelp = 'Your mobile browser is blocking precise GPS. Enable it like this:';
+                    this.permissionSteps = [
+                        'Tap the lock icon next to the URL at the top.',
+                        'Open Site settings or Permissions.',
+                        'Set Location to Allow.',
+                        'Phone Settings → Location → ON.',
+                        'Reload and tap "Try GPS again" below.',
+                    ];
+                } else {
+                    this.permissionHelp = 'Your browser is blocking precise GPS. Enable it from the address bar lock icon → Site settings → Location → Allow, then reload.';
+                    this.permissionSteps = [];
+                }
+            },
+
+            async detectByIp(showPermissionTip = false) {
+                const providers = [
+                    { url: 'https://ipapi.co/json/', map: (d) => ({ lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country_name }) },
+                    { url: 'https://ipwho.is/', map: (d) => d.success === false ? null : ({ lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country }) },
+                    { url: 'https://api.bigdatacloud.net/data/client-ip', map: async (d) => {
+                        if (!d || !d.ipString) return null;
+                        const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?ipv4=${d.ipString}&localityLanguage=en`);
+                        if (!r.ok) return null;
+                        const j = await r.json();
+                        return { lat: j.location?.latitude, lng: j.location?.longitude, city: j.city, region: j.principalSubdivision, country: j.countryName };
+                    }},
+                ];
+
+                for (const p of providers) {
+                    try {
+                        const res = await fetch(p.url);
+                        if (!res.ok) continue;
+                        const json = await res.json();
+                        const info = await p.map(json);
+                        if (!info) continue;
+                        const lat = Number(info.lat);
+                        const lng = Number(info.lng);
+                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+                        this.form.location_lat = lat.toFixed(7);
+                        this.form.location_lng = lng.toFixed(7);
+                        this.map.setView([lat, lng], 11);
+                        if (!this.marker) {
+                            this.marker = L.marker([lat, lng]).addTo(this.map);
+                        } else {
+                            this.marker.setLatLng([lat, lng]);
+                        }
+
+                        const parts = [info.city, info.region, info.country].filter(Boolean);
+                        if (parts.length) {
+                            this.form.location = parts.join(', ');
+                        } else {
+                            await this.reverseLookup(lat, lng);
+                        }
+
+                        const tip = showPermissionTip
+                            ? ' (Approx city from network. For precise pin, allow location for this site in browser settings then tap again.)'
+                            : ' (Approx city from network. Tap map to refine.)';
+                        this.mapStatus = `Detected: ${this.form.location}${tip}`;
+                        return;
+                    } catch (_) {
+                        // try next provider
                     }
-                }, (error) => {
-                    if (error && error.code === 1) {
-                        this.mapStatus = 'Location permission denied. Allow location for this site in mobile browser settings, then tap again.';
-                    } else if (error && error.code === 2) {
-                        this.mapStatus = 'Could not detect current GPS location. Please try again or pin manually on map.';
-                    } else if (error && error.code === 3) {
-                        this.mapStatus = 'Location request timed out. Please try again.';
-                    } else {
-                        this.mapStatus = 'Could not detect current location. Please enter manually or tap map.';
-                    }
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 0,
-                });
+                }
+
+                this.mapStatus = showPermissionTip
+                    ? 'Could not auto-detect. Allow location for this site in browser settings, or pin on map / type manually.'
+                    : 'Could not auto-detect. Pin on map or type your area manually.';
             },
 
             resetEnhancements() {

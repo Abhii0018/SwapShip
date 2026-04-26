@@ -1,48 +1,43 @@
-<section class="profile-delete-shell">
-    <header class="profile-subhead">
-        <h2>Delete account</h2>
+<section class="profile-delete-shell profile-collapse profile-collapse-danger" x-data="{ open: {{ $errors->userDeletion->isNotEmpty() ? 'true' : 'false' }} }" :class="{ 'is-open': open }">
+    <button type="button" class="profile-collapse-head" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
+        <div class="profile-collapse-icon profile-collapse-icon-danger" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+        </div>
+        <div class="profile-collapse-text">
+            <h2>Delete account</h2>
+            <p>Permanently remove your SwapShip account.</p>
+        </div>
+        <span class="profile-collapse-chevron" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </span>
+    </button>
+
+    <div class="profile-collapse-body" x-show="open" x-transition.opacity.duration.250ms x-cloak>
         <p class="profile-danger-copy">
-            Once your account is deleted, all of its resources and data will be permanently deleted.
-            Before deleting your account, please download any data or information that you wish to retain.
+            Once your account is deleted, all of its resources and data will be permanently removed.
+            Please download any data you wish to keep before continuing.
         </p>
-    </header>
 
-    <button
-        class="btn profile-danger-btn"
-        x-data=""
-        x-on:click.prevent="$dispatch('open-modal', 'confirm-user-deletion')"
-    >Delete Account</button>
-
-    <x-modal name="confirm-user-deletion" :show="$errors->userDeletion->isNotEmpty()" focusable>
-        <form method="post" action="{{ route('profile.destroy') }}" class="p-6 profile-delete-modal-form">
+        <form method="post" action="{{ route('profile.destroy') }}" class="profile-subform">
             @csrf
             @method('delete')
 
-            <h2 class="profile-delete-modal-title">
-                Are you sure you want to delete your account?
-            </h2>
-
-            <p class="profile-delete-modal-copy">
-                Once your account is deleted, all of its resources and data will be permanently deleted.
-                Please enter your password to confirm you would like to permanently delete your account.
-            </p>
-
-            <div class="mt-6 profile-field">
-                <label for="password">Password confirmation</label>
+            <div class="profile-field">
+                <label for="delete_password">Confirm with current password</label>
                 <input
-                    id="password"
+                    id="delete_password"
                     name="password"
                     type="password"
-                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    placeholder="Enter your current password"
                 />
-
                 <x-input-error :messages="$errors->userDeletion->get('password')" class="mt-2" />
             </div>
 
-            <div class="mt-6 profile-delete-actions">
-                <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
-                <button class="btn profile-danger-btn" type="submit">Delete Account</button>
+            <div class="profile-actions">
+                <button class="btn profile-danger-btn" type="submit">Delete my account</button>
+                <button type="button" class="btn" @click="open = false">Cancel</button>
             </div>
         </form>
-    </x-modal>
+    </div>
 </section>
