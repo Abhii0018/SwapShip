@@ -46,30 +46,10 @@ class PaymentController extends Controller
             return back()->with('success', 'Payment is already completed for this order.');
         }
 
-        $expectedGatewayOrderId = $stage === 'remaining'
-            ? ($order->remaining_gateway_order_id ?: null)
-            : ($order->upfront_gateway_order_id ?: $order->gateway_order_id);
-
         if ($gateway === 'razorpay') {
-            $validated = $request->validate([
-                'razorpay_payment_id' => 'required|string',
-                'razorpay_order_id' => 'required|string',
-                'razorpay_signature' => 'required|string',
-            ]);
-
-            if (! $expectedGatewayOrderId || ! hash_equals($expectedGatewayOrderId, $validated['razorpay_order_id'])) {
-                return back()->with('error', 'Invalid Razorpay order reference.');
-            }
-
-            $secret = (string) config('payments.razorpay.key_secret', '');
-            if ($secret === '') {
-                return back()->with('error', 'Razorpay is not configured on server.');
-            }
-
-            $payload = $validated['razorpay_order_id'].'|'.$validated['razorpay_payment_id'];
-            $expected = hash_hmac('sha256', $payload, $secret);
-            if (! hash_equals($expected, $validated['razorpay_signature'])) {
-                return back()->with('error', 'Payment verification failed.');
+            $verificationError = $this->verifyRazorpayPaymentRequest($request, $order, $stage);
+            if ($verificationError !== null) {
+                return back()->with('error', $verificationError);
             }
         }
 
@@ -82,6 +62,115 @@ class PaymentController extends Controller
                 ? 'Final payment completed successfully. Reference: '.$paymentRef
                 : 'Upfront payment completed successfully. Reference: '.$paymentRef
         );
+    }
+
+    public function razorpayCallback(Request $request, Order $order)
+    {
+        $user = $request->user();
+        if ($user && ! ($user->isAdmin() || $user->id === $order->buyer_id)) {
+            abort(403);
+        }
+
+        if ($order->payment_method !== 'escrow') {
+            return $this->callbackRedirect($user, 'error', 'Online payment is only for escrow orders.');
+        }
+
+        $gateway = (string) ($order->gateway ?: config('payments.default_gateway', 'razorpay'));
+        if ($gateway !== 'razorpay') {
+            return $this->callbackRedirect($user, 'error', 'Razorpay is not configured for this order.');
+        }
+
+        $stage = $this->resolveActiveStage($order);
+        if ($stage === 'none') {
+            return $this->callbackRedirect($user, 'success', 'Payment is already completed for this order.');
+        }
+
+        $verificationError = $this->verifyRazorpayPaymentRequest($request, $order, $stage);
+        if ($verificationError !== null) {
+            if ($user) {
+                return redirect()->route('payments.checkout', $order)->with('error', $verificationError);
+            }
+            return redirect()->route('home')->with('error', $verificationError);
+        }
+
+        $paymentRef = (string) $request->input('razorpay_payment_id', '');
+        if ($paymentRef === '') {
+            $paymentRef = (string) $request->query('razorpay_payment_id', '');
+        }
+        if ($paymentRef === '') {
+            $paymentRef = 'PAY-'.strtoupper(substr(md5((string) now()->timestamp.$order->id), 0, 12));
+        }
+
+        $this->markStagePaid($order, $stage, $paymentRef, $gateway);
+
+        return $this->callbackRedirect(
+            $user,
+            'success',
+            $stage === 'remaining'
+                ? 'Final payment completed successfully. Reference: '.$paymentRef
+                : 'Upfront payment completed successfully. Reference: '.$paymentRef
+        );
+    }
+
+    public function initRazorpay(Request $request, Order $order): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $user->id === $order->buyer_id, 403);
+
+        if ($order->payment_method !== 'escrow') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Online payment is only for escrow orders.',
+            ], 422);
+        }
+
+        $gateway = (string) ($order->gateway ?: config('payments.default_gateway', 'razorpay'));
+        if ($gateway !== 'razorpay') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Razorpay is not the configured gateway for this order.',
+            ], 422);
+        }
+
+        $keyId = trim((string) config('payments.razorpay.key_id', ''));
+        if ($keyId === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Razorpay key is missing on server.',
+            ], 500);
+        }
+
+        $stage = $this->resolveActiveStage($order);
+        if ($stage === 'none') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No pending payment for this order.',
+            ], 422);
+        }
+
+        $gatewayOrderId = $this->createOrReuseRazorpayOrder($order, $stage);
+        if (! $gatewayOrderId) {
+            return response()->json([
+                'ok' => true,
+                'direct_mode' => true,
+                'key' => $keyId,
+                'order_id' => null,
+                'amount' => (int) round($this->stageAmount($order, $stage) * 100),
+                'stage' => $stage,
+                'stage_label' => $stage === 'remaining' ? 'Final doorstep payment' : 'Upfront payment',
+                'message' => 'Proceeding with secure direct checkout mode.',
+            ]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'direct_mode' => false,
+            'key' => $keyId,
+            'order_id' => $gatewayOrderId,
+            'amount' => (int) round($this->stageAmount($order, $stage) * 100),
+            'stage' => $stage,
+            'stage_label' => $stage === 'remaining' ? 'Final doorstep payment' : 'Upfront payment',
+        ]);
     }
 
     public function webhookRazorpay(Request $request): JsonResponse
@@ -141,8 +230,8 @@ class PaymentController extends Controller
             return $existing;
         }
 
-        $keyId = (string) config('payments.razorpay.key_id', '');
-        $keySecret = (string) config('payments.razorpay.key_secret', '');
+        $keyId = trim((string) config('payments.razorpay.key_id', ''));
+        $keySecret = trim((string) config('payments.razorpay.key_secret', ''));
         if ($keyId === '' || $keySecret === '') {
             return null;
         }
@@ -246,6 +335,252 @@ class PaymentController extends Controller
             'body' => is_string($body) ? $body : '',
             'json' => is_string($body) ? json_decode($body, true) : null,
         ];
+    }
+
+    private function fetchRazorpayPayment(string $paymentId, string $keyId, string $keySecret): ?array
+    {
+        if ($paymentId === '' || $keyId === '' || $keySecret === '') {
+            return null;
+        }
+
+        $ch = curl_init('https://api.razorpay.com/v1/payments/'.rawurlencode($paymentId));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+                'User-Agent: SwapShip/1.0 (PHP cURL)',
+            ],
+            CURLOPT_USERPWD => $keyId.':'.$keySecret,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_FAILONERROR => false,
+        ]);
+
+        $body = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($status < 200 || $status >= 300 || $body === false) {
+            Log::warning('Razorpay payment fetch failed', [
+                'payment_id' => $paymentId,
+                'status' => $status,
+                'error' => $err,
+                'body' => is_string($body) ? $body : '',
+            ]);
+            return null;
+        }
+
+        $json = json_decode((string) $body, true);
+        return is_array($json) ? $json : null;
+    }
+
+    private function fetchRazorpayPaymentWithRetry(
+        string $paymentId,
+        string $keyId,
+        string $keySecret,
+        int $attempts = 3,
+        int $sleepMs = 200
+    ): ?array {
+        $attempts = max(1, $attempts);
+        for ($i = 0; $i < $attempts; $i++) {
+            $payment = $this->fetchRazorpayPayment($paymentId, $keyId, $keySecret);
+            if (is_array($payment)) {
+                return $payment;
+            }
+            if ($i < $attempts - 1) {
+                usleep(max(1, $sleepMs) * 1000);
+            }
+        }
+
+        return null;
+    }
+
+    private function verifyRazorpayPaymentRequest(Request $request, Order $order, string $stage): ?string
+    {
+        $expectedGatewayOrderId = $stage === 'remaining'
+            ? ($order->remaining_gateway_order_id ?: null)
+            : ($order->upfront_gateway_order_id ?: $order->gateway_order_id);
+
+        $keyId = trim((string) config('payments.razorpay.key_id', ''));
+        $paymentId = (string) ($request->input('razorpay_payment_id', $request->query('razorpay_payment_id', '')));
+        $orderId = (string) ($request->input('razorpay_order_id', $request->query('razorpay_order_id', '')));
+        $signature = (string) ($request->input('razorpay_signature', $request->query('razorpay_signature', '')));
+        $directMode = (bool) $request->boolean('razorpay_direct_mode');
+        $expectedAmount = (int) round($this->stageAmount($order, $stage) * 100);
+
+        $secret = trim((string) config('payments.razorpay.key_secret', ''));
+        if ($secret === '') {
+            return 'Razorpay is not configured on server.';
+        }
+
+        if ($paymentId === '' && $expectedGatewayOrderId) {
+            $fallbackPayment = $this->fetchLatestRazorpayOrderPaymentWithRetry(
+                $expectedGatewayOrderId,
+                $keyId,
+                $secret,
+                $expectedAmount,
+                8,
+                700
+            );
+            if (is_array($fallbackPayment)) {
+                $paymentId = (string) ($fallbackPayment['id'] ?? '');
+                if ($paymentId !== '') {
+                    $request->merge(['razorpay_payment_id' => $paymentId]);
+                }
+            }
+        }
+
+        if ($paymentId === '') {
+            return 'Missing Razorpay payment reference.';
+        }
+
+        if ($orderId !== '' && $signature !== '') {
+            if (! $directMode && (! $expectedGatewayOrderId || ! hash_equals($expectedGatewayOrderId, $orderId))) {
+                return 'Invalid Razorpay order reference.';
+            }
+            $payload = $orderId.'|'.$paymentId;
+            $expected = hash_hmac('sha256', $payload, $secret);
+            if (! hash_equals($expected, $signature)) {
+                return 'Payment verification failed.';
+            }
+
+            return null;
+        }
+
+        // Some mobile redirect flows can return only payment_id to callback.
+        // In that case, verify by fetching payment details from Razorpay API.
+        $payment = $this->fetchRazorpayPaymentWithRetry(
+            $paymentId,
+            $keyId,
+            $secret,
+            12,
+            800
+        );
+
+        if ((! $payment || ! in_array((string) ($payment['status'] ?? ''), ['captured', 'authorized'], true)) && $expectedGatewayOrderId) {
+            $payment = $this->fetchLatestRazorpayOrderPaymentWithRetry(
+                $expectedGatewayOrderId,
+                $keyId,
+                $secret,
+                $expectedAmount,
+                8,
+                700
+            );
+        }
+
+        $gatewayStatus = (string) ($payment['status'] ?? '');
+        if (! $payment || ! in_array($gatewayStatus, ['captured', 'authorized'], true)) {
+            return 'Payment confirmation is still syncing with Razorpay. Please wait a few seconds and retry.';
+        }
+        $fetchedOrderId = (string) ($payment['order_id'] ?? '');
+        if ($expectedGatewayOrderId && $fetchedOrderId !== '' && ! hash_equals($expectedGatewayOrderId, $fetchedOrderId)) {
+            return 'Invalid Razorpay order reference.';
+        }
+        $paidAmount = (int) ($payment['amount'] ?? 0);
+        if ($paidAmount !== $expectedAmount) {
+            return 'Paid amount does not match expected stage amount.';
+        }
+
+        if ($paymentId === '') {
+            $paymentId = (string) ($payment['id'] ?? '');
+            if ($paymentId !== '') {
+                $request->merge(['razorpay_payment_id' => $paymentId]);
+            }
+        }
+
+        return null;
+    }
+
+    private function fetchLatestRazorpayOrderPaymentWithRetry(
+        string $gatewayOrderId,
+        string $keyId,
+        string $keySecret,
+        int $expectedAmountPaise,
+        int $attempts = 5,
+        int $sleepMs = 500
+    ): ?array {
+        $attempts = max(1, $attempts);
+        for ($i = 0; $i < $attempts; $i++) {
+            $payment = $this->fetchLatestRazorpayOrderPayment($gatewayOrderId, $keyId, $keySecret, $expectedAmountPaise);
+            if (is_array($payment)) {
+                return $payment;
+            }
+            if ($i < $attempts - 1) {
+                usleep(max(1, $sleepMs) * 1000);
+            }
+        }
+
+        return null;
+    }
+
+    private function fetchLatestRazorpayOrderPayment(
+        string $gatewayOrderId,
+        string $keyId,
+        string $keySecret,
+        int $expectedAmountPaise
+    ): ?array {
+        if ($gatewayOrderId === '' || $keyId === '' || $keySecret === '') {
+            return null;
+        }
+
+        $ch = curl_init('https://api.razorpay.com/v1/orders/'.rawurlencode($gatewayOrderId).'/payments');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+                'User-Agent: SwapShip/1.0 (PHP cURL)',
+            ],
+            CURLOPT_USERPWD => $keyId.':'.$keySecret,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_FAILONERROR => false,
+        ]);
+
+        $body = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($status < 200 || $status >= 300 || $body === false) {
+            Log::warning('Razorpay order payments fetch failed', [
+                'gateway_order_id' => $gatewayOrderId,
+                'status' => $status,
+                'error' => $err,
+                'body' => is_string($body) ? $body : '',
+            ]);
+            return null;
+        }
+
+        $json = json_decode((string) $body, true);
+        $items = is_array($json['items'] ?? null) ? $json['items'] : [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $status = (string) ($item['status'] ?? '');
+            $amount = (int) ($item['amount'] ?? 0);
+            if (in_array($status, ['captured', 'authorized'], true) && $amount === $expectedAmountPaise) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    private function callbackRedirect($user, string $flashType, string $message)
+    {
+        if ($user) {
+            return redirect()->route('shipments.index')->with($flashType, $message);
+        }
+
+        return redirect()->route('login')->with($flashType, $message);
     }
 
     private function resolveActiveStage(Order $order): string

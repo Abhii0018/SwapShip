@@ -26,9 +26,8 @@ class AppServiceProvider extends ServiceProvider
         $appUrl = (string) config('app.url');
 
         // Cloudflare tunnel terminates TLS before forwarding to local HTTP.
-        // Force generated links/forms to remain HTTPS for browser safety checks.
+        // Force HTTPS, but keep host dynamic from the incoming request.
         if ($appUrl !== '' && str_starts_with($appUrl, 'https://')) {
-            URL::forceRootUrl($appUrl);
             URL::forceScheme('https');
         }
 

@@ -51,6 +51,7 @@ Route::delete('/saved-searches/{savedSearch}', [ItemController::class, 'deleteSa
     ->name('saved-searches.destroy');
 Route::post('/webhooks/shipping/{provider}', ShipmentWebhookController::class)->name('webhooks.shipping');
 Route::post('/webhooks/payments/razorpay', [PaymentController::class, 'webhookRazorpay'])->name('webhooks.payments.razorpay');
+Route::match(['get', 'post'], '/payments/orders/{order}/razorpay/callback', [PaymentController::class, 'razorpayCallback'])->name('payments.razorpay-callback');
 
 Route::middleware(['auth'])->group(function () {
 
@@ -75,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/shipments/{shipment}/otp/generate', [ShipmentController::class, 'generateDeliveryOtp'])->name('shipments.generate-otp');
     Route::post('/shipments/{shipment}/otp/verify', [ShipmentController::class, 'verifyDeliveryOtp'])->name('shipments.verify-otp');
     Route::get('/payments/orders/{order}/checkout', [PaymentController::class, 'checkout'])->name('payments.checkout');
+    Route::post('/payments/orders/{order}/init-razorpay', [PaymentController::class, 'initRazorpay'])->name('payments.init-razorpay');
     Route::post('/payments/orders/{order}/pay', [PaymentController::class, 'pay'])->name('payments.pay');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

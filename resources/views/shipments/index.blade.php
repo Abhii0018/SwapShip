@@ -70,9 +70,15 @@
                             || (bool) ($shipment->order->second_payment_required_before_otp ?? false);
                         $remainingPaid = !empty($shipment->order->remaining_paid_at);
                         $pendingStageLabel = !$upfrontPaid ? 'Upfront payment pending' : (($remainingRequired && !$remainingPaid) ? 'Final doorstep payment pending' : 'All payments done');
-                        $effectivePaymentStatus = ($upfrontPaid && (!$remainingRequired || $remainingPaid))
-                            ? 'paid'
-                            : 'pending';
+                        if (! $upfrontPaid) {
+                            $effectivePaymentStatus = 'pending';
+                        } elseif ($remainingRequired && ! $remainingPaid) {
+                            $effectivePaymentStatus = 'partially paid';
+                        } else {
+                            $effectivePaymentStatus = 'paid';
+                        }
+                        $upfrontStatusLabel = $upfrontPaid ? 'paid' : 'pending';
+                        $remainingStatusLabel = ! $remainingRequired ? 'not required' : ($remainingPaid ? 'paid' : 'pending');
                     @endphp
                     <div class="shipment-order-block">
                         <p><strong>{{ $shipment->exchangeRequest->item->title }}</strong></p>
@@ -109,6 +115,10 @@
                         @endif
                         <div class="shipment-state-row">
                             <span class="shipment-state-pill">Payment: {{ $effectivePaymentStatus }}</span>
+                            @if($shipment->order->payment_method === 'escrow')
+                                <span class="shipment-state-pill">Upfront: {{ $upfrontStatusLabel }}</span>
+                                <span class="shipment-state-pill">Remaining: {{ $remainingStatusLabel }}</span>
+                            @endif
                             <span class="shipment-state-pill">Settlement: {{ $shipment->order->settlement_status }}</span>
                             <span class="shipment-state-pill">OTP: {{ $otpStatus }}</span>
                         </div>
@@ -122,7 +132,11 @@
                                 </a>
                             </p>
                         @elseif($isSeller && $shipment->order->payment_method === 'escrow' && (!$upfrontPaid || ($remainingRequired && !$remainingPaid)))
-                            <p class="muted" style="margin-top:6px;">Waiting for buyer to complete {{ !$upfrontPaid ? 'upfront' : 'final' }} checkout before next handover step.</p>
+                            @if($upfrontPaid)
+                                <p class="muted" style="margin-top:6px;">Buyer paid upfront amount successfully. Waiting for final doorstep payment to unlock next step.</p>
+                            @else
+                                <p class="muted" style="margin-top:6px;">Waiting for buyer to complete upfront checkout before next handover step.</p>
+                            @endif
                             <p class="shipment-lock-note" style="margin-top:6px;">Pay action appears only in buyer account.</p>
                         @endif
                         @if($isBuyer)

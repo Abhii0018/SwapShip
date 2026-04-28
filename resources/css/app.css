@@ -2393,10 +2393,10 @@ input, select, textarea {
     .nv-component-grid::-webkit-scrollbar { display: none; width: 0; height: 0; }
     .nv-component-card {
         min-width: 86vw;
-        min-height: 170px;
+        min-height: 125px;
         scroll-snap-align: start;
     }
-    .nv-component-card img { min-height: 170px; }
+    .nv-component-card img { min-height: 125px; }
     .nv-component-overlay h3 { font-size: clamp(1.15rem, 5.5vw, 1.5rem); }
 
     .nv-flow-step { padding: 14px; }

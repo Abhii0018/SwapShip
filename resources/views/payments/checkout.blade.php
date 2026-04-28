@@ -56,14 +56,16 @@
                 @if(($order->gateway ?? config('payments.default_gateway')) === 'razorpay')
                     @if($stage === 'none')
                         <p class="muted checkout-info">No pending payment for this order. You can return to shipments.</p>
-                    @elseif(!empty($razorpayKey) && !empty($gatewayOrderId))
+                    @elseif(!empty($razorpayKey))
                         <form id="razorpay-pay-form" method="POST" action="{{ route('payments.pay', $order) }}" class="checkout-form">
                             @csrf
                             <input type="hidden" name="razorpay_payment_id" id="rzp_payment_id">
                             <input type="hidden" name="razorpay_order_id" id="rzp_order_id" value="{{ $gatewayOrderId }}">
                             <input type="hidden" name="razorpay_signature" id="rzp_signature">
+                            <input type="hidden" name="razorpay_direct_mode" id="rzp_direct_mode" value="0">
                             <button class="btn btn-primary checkout-pay-btn" type="button" id="rzp-pay-btn">Pay {{ $stageLabel }} with Razorpay</button>
                         </form>
+                        <p class="muted checkout-info">Secure checkout is ready. Tap Pay to continue.</p>
                     @else
                         @if(!empty($gatewayInitFailed))
                             <p class="muted checkout-info">Unable to initialize Razorpay order right now. Please retry in a moment, or verify gateway API keys/permissions.</p>
@@ -206,32 +208,81 @@
     }
 </style>
 
-@if(($order->gateway ?? config('payments.default_gateway')) === 'razorpay' && !empty($razorpayKey) && !empty($gatewayOrderId))
+@if(($order->gateway ?? config('payments.default_gateway')) === 'razorpay' && !empty($razorpayKey) && $order->payment_method === 'escrow' && $stage !== 'none')
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
         (() => {
             const button = document.getElementById('rzp-pay-btn');
             if (!button) return;
+            const hiddenOrderInput = document.getElementById('rzp_order_id');
+            const hiddenDirectInput = document.getElementById('rzp_direct_mode');
+            const statusNode = document.querySelector('.checkout-info');
+            const initUrl = @json(route('payments.init-razorpay', $order));
+            let cachedOrderId = @json($gatewayOrderId);
+            let opening = false;
 
-            button.addEventListener('click', () => {
+            button.addEventListener('click', async () => {
+                if (opening) return;
+                opening = true;
+                button.disabled = true;
+                const originalLabel = button.textContent;
+                button.textContent = 'Preparing secure checkout...';
+
+                try {
+                    const res = await fetch(initUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({})
+                    });
+                    const payload = await res.json().catch(() => null);
+                    if (res.ok && payload && payload.ok && payload.order_id) {
+                        cachedOrderId = payload.order_id;
+                        if (statusNode) statusNode.textContent = 'Secure checkout is ready. Tap Pay to continue.';
+                    } else if (payload && payload.message && statusNode) {
+                        statusNode.textContent = payload.message;
+                    }
+                } catch (_) {
+                    if (statusNode) statusNode.textContent = 'Network issue while preparing checkout. Continuing with secure fallback mode.';
+                }
+
+                const usingDirect = !cachedOrderId;
+                if (hiddenDirectInput) hiddenDirectInput.value = usingDirect ? '1' : '0';
+                if (hiddenOrderInput) hiddenOrderInput.value = cachedOrderId || '';
+
                 const options = {
                     key: @json($razorpayKey),
                     amount: @json((int) round(((float) $amountToPay) * 100)),
                     currency: 'INR',
                     name: 'SwapShip',
                     description: 'Order #{{ $order->id }} · {{ $stageLabel }}',
-                    order_id: @json($gatewayOrderId),
+                    callback_url: @json(route('payments.razorpay-callback', $order)),
+                    redirect: true,
                     handler: function (response) {
                         document.getElementById('rzp_payment_id').value = response.razorpay_payment_id || '';
                         document.getElementById('rzp_order_id').value = response.razorpay_order_id || '';
                         document.getElementById('rzp_signature').value = response.razorpay_signature || '';
+                        if (!response.razorpay_order_id || !response.razorpay_signature) {
+                            if (hiddenDirectInput) hiddenDirectInput.value = '1';
+                        } else {
+                            if (hiddenDirectInput) hiddenDirectInput.value = '0';
+                        }
                         document.getElementById('razorpay-pay-form').submit();
                     },
                     theme: { color: '#7c3aed' }
                 };
-
+                if (cachedOrderId) {
+                    options.order_id = cachedOrderId;
+                }
                 const rzp = new Razorpay(options);
                 rzp.open();
+                button.textContent = originalLabel;
+                button.disabled = false;
+                opening = false;
             });
         })();
     </script>

@@ -83,7 +83,7 @@ class EmailOtpVerificationController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard')->with('success', 'Email verified successfully.');
+        return redirect()->route('home')->with('success', 'Email verified successfully.');
     }
 
     public function resend(Request $request): RedirectResponse
@@ -220,7 +220,7 @@ class EmailOtpVerificationController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard')->with('success', 'Email verified successfully.');
+        return redirect()->route('home')->with('success', 'Email verified successfully.');
     }
 
     protected function resendPendingRegistrationOtp(Request $request): RedirectResponse
