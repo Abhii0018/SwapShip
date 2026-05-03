@@ -13,11 +13,6 @@ COPY . .
 
 RUN composer install --no-dev --optimize-autoloader
 
-RUN php artisan config:clear && \
-    php artisan cache:clear && \
-    php artisan route:clear && \
-    php artisan view:clear
-
 RUN chmod -R 775 storage bootstrap/cache
 
 EXPOSE 10000
