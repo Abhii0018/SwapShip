@@ -93,4 +93,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 });
 
+Route::get('/run-migration', function () {
+    \Artisan::call('migrate', ['--force' => true]);
+    return "Migration completed";
+});
+
 require __DIR__.'/auth.php';
