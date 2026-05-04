@@ -30,8 +30,4 @@ RUN chmod -R 775 storage bootstrap/cache
 
 EXPOSE 10000
 
-CMD sh -c "php artisan config:cache || true; \
-    php artisan migrate --force || true; \
-    php artisan view:cache || true; \
-    php artisan storage:link || true; \
-    php -S 0.0.0.0:${PORT:-10000} -t public"
+CMD ["sh", "-lc", "php -S 0.0.0.0:${PORT:-10000} -t public"]
