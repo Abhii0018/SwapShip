@@ -12,7 +12,7 @@ RUN npm run build
 FROM php:8.4-cli
 
 RUN apt-get update && apt-get install -y \
-    git unzip curl libzip-dev zip \
+    git unzip curl libzip-dev libpq-dev zip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql zip
