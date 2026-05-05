@@ -7,7 +7,10 @@ use App\Models\ItemImage;
 use App\Models\ExchangeRequest;
 use App\Models\SavedSearch;
 use App\Models\User;
+use Cloudinary\Cloudinary;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -375,10 +378,9 @@ class ItemController extends Controller
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
-                $path = $file->store('items', 'public');
                 ItemImage::create([
                     'item_id' => $item->id,
-                    'url' => '/storage/'.$path,
+                    'url' => $this->uploadItemImageAndGetUrl($file),
                 ]);
             }
         }
@@ -465,10 +467,15 @@ class ItemController extends Controller
         }
 
         foreach ($item->images as $image) {
-            $path = ltrim(str_replace('/storage/', '', (string) $image->url), '/');
-            if ($path !== '') {
-                Storage::disk('public')->delete($path);
+            $url = (string) $image->url;
+            if (str_starts_with($url, '/storage/')) {
+                $path = ltrim(str_replace('/storage/', '', $url), '/');
+                if ($path !== '') {
+                    Storage::disk('public')->delete($path);
+                }
+                continue;
             }
+            $this->deleteCloudinaryAssetByUrl($url);
         }
         $item->images()->delete();
         $item->delete();
@@ -736,5 +743,104 @@ class ItemController extends Controller
             * sin($dLng / 2) * sin($dLng / 2);
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         return $earthRadius * $c;
+    }
+
+    protected function uploadItemImageAndGetUrl(UploadedFile $file): string
+    {
+        if (! $this->isCloudinaryConfigured()) {
+            $path = $file->store('items', 'public');
+            return '/storage/'.$path;
+        }
+
+        try {
+            $folder = (string) config('cloudinary.upload.folder', 'swapship_items');
+            $upload = $this->cloudinaryClient()
+                ->uploadApi()
+                ->upload($file->getRealPath(), [
+                    'folder' => $folder,
+                    'resource_type' => 'image',
+                ]);
+
+            $secureUrl = (string) ($upload['secure_url'] ?? '');
+            if ($secureUrl !== '') {
+                return $secureUrl;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Cloudinary upload failed, falling back to local storage.', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $path = $file->store('items', 'public');
+        return '/storage/'.$path;
+    }
+
+    protected function deleteCloudinaryAssetByUrl(string $url): void
+    {
+        if (! $this->isCloudinaryConfigured()) {
+            return;
+        }
+
+        $publicId = $this->extractCloudinaryPublicIdFromUrl($url);
+        if ($publicId === null) {
+            return;
+        }
+
+        try {
+            $this->cloudinaryClient()->uploadApi()->destroy($publicId, [
+                'resource_type' => 'image',
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Cloudinary asset delete failed.', [
+                'public_id' => $publicId,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function extractCloudinaryPublicIdFromUrl(string $url): ?string
+    {
+        $cloudName = (string) config('cloudinary.cloud.cloud_name');
+        if ($cloudName === '' || ! str_contains($url, "res.cloudinary.com/{$cloudName}/")) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        // Example path: /<cloud>/image/upload/v123/folder/file.jpg
+        if (! preg_match('#/image/upload/(?:v\d+/)?(.+)$#', $path, $matches)) {
+            return null;
+        }
+
+        $publicPath = $matches[1] ?? '';
+        if ($publicPath === '') {
+            return null;
+        }
+
+        return preg_replace('/\.[a-zA-Z0-9]+$/', '', $publicPath) ?: null;
+    }
+
+    protected function isCloudinaryConfigured(): bool
+    {
+        return (string) config('cloudinary.cloud.cloud_name') !== ''
+            && (string) config('cloudinary.cloud.api_key') !== ''
+            && (string) config('cloudinary.cloud.api_secret') !== '';
+    }
+
+    protected function cloudinaryClient(): Cloudinary
+    {
+        return new Cloudinary([
+            'cloud' => [
+                'cloud_name' => (string) config('cloudinary.cloud.cloud_name'),
+                'api_key' => (string) config('cloudinary.cloud.api_key'),
+                'api_secret' => (string) config('cloudinary.cloud.api_secret'),
+            ],
+            'url' => [
+                'secure' => true,
+            ],
+        ]);
     }
 }

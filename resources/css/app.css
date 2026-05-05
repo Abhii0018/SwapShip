@@ -3960,8 +3960,8 @@ body.profile-crop-open { overflow: hidden; }
 }
 .profile-crop-dialog {
     position: relative;
-    width: min(560px, 100%);
-    max-height: min(720px, calc(100dvh - 24px));
+    width: min(500px, 100%);
+    max-height: min(86dvh, 660px);
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg, #15161b, #0d0e12);
@@ -4021,13 +4021,14 @@ body.profile-crop-open { overflow: hidden; }
         rgba(0,0,0,.35);
     flex: 1 1 auto;
     min-height: 0;
+    max-height: 48dvh;
     display: flex;
 }
 .profile-crop-canvas {
     position: relative;
     width: 100%;
     flex: 1 1 auto;
-    min-height: 220px;
+    min-height: 180px;
     max-height: 100%;
     background: #000;
     border-radius: 12px;
@@ -4107,38 +4108,33 @@ body.profile-crop-open { overflow: hidden; }
 }
 @media (max-width: 640px) {
     .profile-crop-modal {
-        padding: 0;
-        align-items: stretch;
-        justify-content: stretch;
+        padding: 10px;
+        align-items: center;
+        justify-content: center;
     }
     .profile-crop-dialog {
-        width: 100%;
+        width: min(520px, 100%);
         max-width: 100%;
-        max-height: 100dvh;
-        height: 100dvh;
-        height: 100svh;
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
+        max-height: min(86dvh, 700px);
+        height: auto;
+        border-radius: 14px;
         margin: 0;
     }
     .profile-crop-head {
         padding: 12px 14px 8px;
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: linear-gradient(180deg, #15161b 80%, rgba(21,22,27,0));
+        background: transparent;
     }
     .profile-crop-head h3 { font-size: 15px; }
     .profile-crop-head p { font-size: 12px; }
     .profile-crop-stage {
         padding: 8px;
-        flex: 1 1 auto;
-        min-height: 140px;
+        flex: 0 1 auto;
+        min-height: 120px;
+        max-height: 46dvh;
     }
     .profile-crop-canvas {
-        height: 100%;
-        min-height: 0;
+        min-height: 180px;
+        max-height: 46dvh;
     }
     .profile-crop-controls {
         padding: 8px 12px 0;
@@ -4151,10 +4147,8 @@ body.profile-crop-open { overflow: hidden; }
     }
     .profile-crop-foot {
         padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
-        position: sticky;
-        bottom: 0;
-        z-index: 2;
-        background: linear-gradient(180deg, rgba(13,14,18,0), #0d0e12 35%);
+        position: static;
+        background: transparent;
         border-top: 1px solid rgba(255,255,255,.08);
     }
     .profile-crop-cancel,
