@@ -25,7 +25,7 @@
 
         <div class="auth-field">
             <label for="phone" class="auth-label">Phone</label>
-            <input id="phone" class="auth-input" type="tel" name="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel" pattern="[0-9+\-\s()]{7,20}" maxlength="20" required />
+            <input id="phone" class="auth-input" type="tel" name="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel" pattern="[0-9+() -]{7,20}" maxlength="20" required />
             @error('phone')
                 <p class="auth-error">{{ $message }}</p>
             @enderror
