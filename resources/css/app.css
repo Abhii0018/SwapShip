@@ -3948,6 +3948,8 @@ input:focus, select:focus, textarea:focus {
     align-items: center;
     justify-content: center;
     padding: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 .profile-crop-modal[hidden] { display: none; }
 body.profile-crop-open { overflow: hidden; }
@@ -4109,7 +4111,7 @@ body.profile-crop-open { overflow: hidden; }
 @media (max-width: 640px) {
     .profile-crop-modal {
         padding: 10px;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
     }
     .profile-crop-dialog {
@@ -4118,7 +4120,7 @@ body.profile-crop-open { overflow: hidden; }
         max-height: min(86dvh, 700px);
         height: auto;
         border-radius: 14px;
-        margin: 0;
+        margin: max(8px, env(safe-area-inset-top, 0px)) 0 max(10px, env(safe-area-inset-bottom, 0px));
     }
     .profile-crop-head {
         padding: 12px 14px 8px;
