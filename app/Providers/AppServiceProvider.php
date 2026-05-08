@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\ExchangeRequest;
 use App\Models\Message;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -15,7 +17,32 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Production safety fallback: if DB-backed cache/session tables are missing,
+        // force file driver to avoid full auth-page 500 failures.
+        try {
+            if (config('session.driver') === 'database') {
+                $sessionTable = (string) config('session.table', 'sessions');
+                if (! Schema::hasTable($sessionTable)) {
+                    config(['session.driver' => 'file']);
+                }
+            }
+
+            if (config('cache.default') === 'database') {
+                $cacheTable = (string) config('cache.stores.database.table', 'cache');
+                if (! Schema::hasTable($cacheTable)) {
+                    config(['cache.default' => 'file']);
+                }
+            }
+        } catch (\Throwable $e) {
+            config([
+                'session.driver' => 'file',
+                'cache.default' => 'file',
+            ]);
+
+            Log::warning('Falling back to file session/cache drivers', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
