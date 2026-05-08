@@ -14,9 +14,9 @@ class PasswordResetOtpMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public int $tries = 3;
-    public int $backoff = 10;
-    public bool $afterCommit = true;
+    public $tries = 3;
+    public $backoff = 10;
+    public $afterCommit = true;
 
     public function __construct(
         public User $user,
