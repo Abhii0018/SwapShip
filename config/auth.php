@@ -114,4 +114,21 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Absolute Session Lifetime
+    |--------------------------------------------------------------------------
+    |
+    | Maximum number of minutes a user can stay authenticated since their last
+    | login, regardless of activity. The default Laravel session lifetime is
+    | an idle timeout that gets bumped by every request (including frontend
+    | polling), so users can effectively stay logged in indefinitely. This
+    | absolute lifetime forces a re-login after the configured duration.
+    |
+    | 720 minutes = 12 hours.
+    |
+    */
+
+    'absolute_session_lifetime' => (int) env('ABSOLUTE_SESSION_LIFETIME', 720),
+
 ];

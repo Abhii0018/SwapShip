@@ -44,20 +44,19 @@ class AppServiceProvider extends ServiceProvider
                 ->where('status', 'Pending')
                 ->count();
 
-            $unreadMessageCount = ExchangeRequest::query()
-                ->where(function ($q) use ($user) {
+            // Single SQL aggregate query for total unread count instead of loading every
+            // conversation row into PHP and summing.
+            $unreadMessageCount = (int) Message::query()
+                ->whereNull('read_at')
+                ->where('sender_id', '!=', $user->id)
+                ->whereNull('deleted_for_receiver_at')
+                ->whereHas('exchangeRequest', function ($q) use ($user) {
                     $q->where('sender_id', $user->id)->orWhere('receiver_id', $user->id);
                 })
-                ->withCount(['messages as unread_messages_count' => function ($q) use ($user) {
-                    $q->whereNull('read_at')
-                        ->where('sender_id', '!=', $user->id)
-                        ->whereNull('deleted_for_receiver_at');
-                }])
-                ->get()
-                ->sum('unread_messages_count');
+                ->count();
 
             $unreadConversations = ExchangeRequest::query()
-                ->with(['item', 'sender', 'receiver'])
+                ->with(['item:id,title,user_id', 'sender:id,name', 'receiver:id,name'])
                 ->where(function ($q) use ($user) {
                     $q->where('sender_id', $user->id)->orWhere('receiver_id', $user->id);
                 })
@@ -75,16 +74,24 @@ class AppServiceProvider extends ServiceProvider
                 ->limit(5)
                 ->get();
 
-            $messageItems = $unreadConversations->map(function (ExchangeRequest $conversation) use ($user) {
-                $otherUser = $conversation->sender_id === $user->id ? $conversation->receiver : $conversation->sender;
-                $latestUnread = Message::query()
-                    ->where('exchange_request_id', $conversation->id)
+            // Single grouped query for previews to avoid N+1 (was: one query per conversation).
+            $conversationIds = $unreadConversations->pluck('id')->all();
+            $latestUnreadByConversation = collect();
+            if (! empty($conversationIds)) {
+                $latestUnreadByConversation = Message::query()
+                    ->whereIn('exchange_request_id', $conversationIds)
                     ->whereNull('read_at')
                     ->where('sender_id', '!=', $user->id)
                     ->whereNull('deleted_for_receiver_at')
-                    ->latest()
-                    ->first();
+                    ->latest('id')
+                    ->get()
+                    ->groupBy('exchange_request_id')
+                    ->map->first();
+            }
 
+            $messageItems = $unreadConversations->map(function (ExchangeRequest $conversation) use ($user, $latestUnreadByConversation) {
+                $otherUser = $conversation->sender_id === $user->id ? $conversation->receiver : $conversation->sender;
+                $latestUnread = $latestUnreadByConversation->get($conversation->id);
                 $preview = $latestUnread?->body ?: ($latestUnread?->attachment_name ? '[Attachment]' : 'New message');
 
                 return [
@@ -97,7 +104,7 @@ class AppServiceProvider extends ServiceProvider
             });
 
             $requestItems = ExchangeRequest::query()
-                ->with(['item', 'sender'])
+                ->with(['item:id,title', 'sender:id,name'])
                 ->where('receiver_id', $user->id)
                 ->where('status', 'Pending')
                 ->latest()

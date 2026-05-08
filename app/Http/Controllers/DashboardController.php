@@ -36,7 +36,7 @@ class DashboardController extends Controller
             ->get();
 
         $activeExchanges = ExchangeRequest::query()
-            ->with(['item', 'sender', 'receiver', 'shipment'])
+            ->with(['item', 'sender', 'receiver', 'shipment.order'])
             ->whereIn('status', ['Accepted', 'In Progress'])
             ->where(function ($q) use ($actorId) {
                 $q->where('sender_id', $actorId)->orWhere('receiver_id', $actorId);
@@ -45,7 +45,7 @@ class DashboardController extends Controller
             ->get();
 
         $completedExchanges = ExchangeRequest::query()
-            ->with(['item', 'sender', 'receiver'])
+            ->with(['item', 'sender', 'receiver', 'shipment.order'])
             ->where('status', 'Completed')
             ->where(function ($q) use ($actorId) {
                 $q->where('sender_id', $actorId)->orWhere('receiver_id', $actorId);

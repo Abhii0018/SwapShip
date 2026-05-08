@@ -46,6 +46,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
         return redirect()->intended(route('home', absolute: false));
     }

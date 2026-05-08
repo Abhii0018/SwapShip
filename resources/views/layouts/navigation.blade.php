@@ -162,7 +162,7 @@
         };
 
         refreshNotifications();
-        setInterval(refreshNotifications, 6000);
+        setInterval(refreshNotifications, 30000);
     })();
 </script>
 @endauth

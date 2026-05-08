@@ -56,6 +56,7 @@ class SocialAuthController extends Controller
 
         Auth::login($user, true);
         request()->session()->regenerate();
+        request()->session()->put('auth_logged_in_at', now()->getTimestamp());
 
         return redirect()->intended(route('home'));
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Message;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -625,6 +626,9 @@ class PaymentController extends Controller
     {
         $now = now();
         $payload = ['gateway' => $gateway];
+        $alreadyAtThisStage = $stage === 'remaining'
+            ? (bool) $order->remaining_paid_at
+            : (bool) $order->upfront_paid_at;
 
         if ($stage === 'remaining') {
             $payload['remaining_paid_at'] = $order->remaining_paid_at ?: $now;
@@ -647,5 +651,42 @@ class PaymentController extends Controller
         }
 
         $order->update($payload);
+
+        if (! $alreadyAtThisStage) {
+            $this->propagatePaymentStatusToExchange($order, $stage, $fullyPaid);
+        }
+    }
+
+    private function propagatePaymentStatusToExchange(Order $order, string $stage, bool $fullyPaid): void
+    {
+        $order->loadMissing('shipment.exchangeRequest');
+        $exchange = $order->shipment?->exchangeRequest;
+        if (! $exchange) {
+            return;
+        }
+
+        if (in_array($exchange->status, ['Pending', 'Accepted'], true)) {
+            $exchange->update(['status' => 'In Progress']);
+        }
+
+        $message = $stage === 'remaining'
+            ? 'Final doorstep payment received.'
+            : 'Upfront payment received.';
+        if ($fullyPaid) {
+            $message .= ' All payments are now complete.';
+        }
+
+        try {
+            Message::query()->create([
+                'exchange_request_id' => $exchange->id,
+                'sender_id' => $order->buyer_id,
+                'body' => '[Payment update] '.$message,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record payment chat update', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

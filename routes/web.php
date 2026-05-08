@@ -57,6 +57,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::patch('/exchanges/{exchangeRequest}/status', [ExchangeRequestController::class, 'updateStatus'])->name('exchanges.update-status');
     Route::patch('/exchanges/{exchangeRequest}/confirm', [ExchangeRequestController::class, 'confirm'])->name('exchanges.confirm');
+    Route::get('/exchanges/{exchangeRequest}/deal-terms', [ExchangeRequestController::class, 'dealTerms'])->name('exchanges.deal-terms');
+    Route::post('/exchanges/{exchangeRequest}/deal-terms', [ExchangeRequestController::class, 'dealTermsStore'])->name('exchanges.deal-terms.store');
     Route::get('/exchanges/{exchangeRequest}', [ExchangeRequestController::class, 'show'])->name('exchanges.show');
 
     Route::post('/chat/{exchangeRequest}', [MessageController::class, 'store'])->name('chat.store');

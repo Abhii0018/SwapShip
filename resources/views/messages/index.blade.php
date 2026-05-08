@@ -132,7 +132,12 @@
                             <button type="submit" class="btn btn-primary">Confirm Exchange</button>
                         </form>
                     @elseif(in_array($activeConversation->status, ['Accepted', 'In Progress'], true))
-                        <a class="btn btn-primary" href="{{ route('shipments.index') }}">Proceed to shipment</a>
+                        @if(!$isSender)
+                            <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $activeConversation) }}">Set deal terms</a>
+                        @else
+                            <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $activeConversation) }}">View deal &amp; pay</a>
+                        @endif
+                        <a class="btn" href="{{ route('shipments.index') }}">Proceed to shipment</a>
                     @elseif($activeConversation->status === 'Completed')
                         <a class="btn" href="{{ route('shipments.index') }}">View shipment status</a>
                     @endif
@@ -567,9 +572,9 @@
             });
 
             refreshPresence();
-            setInterval(refreshPresence, 5000);
+            setInterval(refreshPresence, 15000);
             pollUpdates();
-            updateTimer = setInterval(pollUpdates, 2500);
+            updateTimer = setInterval(pollUpdates, 8000);
             initAudioPlayers(document);
 
             const stopTracks = () => {

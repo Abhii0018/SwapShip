@@ -28,6 +28,9 @@ COPY --from=assets /app/public/build /var/www/public/build
 
 RUN chmod -R 775 storage bootstrap/cache
 
+COPY docker/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
 EXPOSE 10000
 
-CMD ["sh", "-lc", "php artisan storage:link || true; php -S 0.0.0.0:${PORT:-10000} -t public"]
+CMD ["/usr/local/bin/start.sh"]

@@ -82,6 +82,7 @@ class EmailOtpVerificationController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
         return redirect()->route('home')->with('success', 'Email verified successfully.');
     }
@@ -128,7 +129,7 @@ class EmailOtpVerificationController extends Controller
                 'email' => $email,
             ]);
 
-            Mail::to($email)->send(new EmailVerificationOtpMail($tempUser, $otp));
+            Mail::to($email)->queue(new EmailVerificationOtpMail($tempUser, $otp));
             return true;
         } catch (Throwable $exception) {
             report($exception);
@@ -148,7 +149,7 @@ class EmailOtpVerificationController extends Controller
         $record->save();
 
         try {
-            Mail::to($user->email)->send(new EmailVerificationOtpMail($user, $otp));
+            Mail::to($user->email)->queue(new EmailVerificationOtpMail($user, $otp));
             return true;
         } catch (Throwable $exception) {
             report($exception);
@@ -219,6 +220,7 @@ class EmailOtpVerificationController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
         return redirect()->route('home')->with('success', 'Email verified successfully.');
     }

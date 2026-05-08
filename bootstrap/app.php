@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AbsoluteSessionTimeout;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
         );
         $middleware->validateCsrfTokens(except: [
             'payments/orders/*/razorpay/callback',
+            'webhooks/payments/razorpay',
+        ]);
+
+        $middleware->web(append: [
+            AbsoluteSessionTimeout::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\SmsAuditLog;
 use App\Models\Shipment;
 use App\Models\ShipmentEvent;
+use App\Services\Orders\DealTermsService;
 use App\Services\Shipping\ShippingService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
@@ -106,7 +107,7 @@ class ShipmentController extends Controller
         return back()->with('success', 'Simulated shipment event processed.');
     }
 
-    public function initiatePayment(Request $request, Shipment $shipment)
+    public function initiatePayment(Request $request, Shipment $shipment, DealTermsService $dealTermsService)
     {
         $this->authorizeShipmentAccess($request, $shipment);
         $this->authorizeSellerAction($request, $shipment);
@@ -117,63 +118,13 @@ class ShipmentController extends Controller
             'upfront_amount' => 'nullable|numeric|min:1',
         ]);
 
-        $shipment->loadMissing('exchangeRequest.item', 'exchangeRequest.sender', 'exchangeRequest.receiver');
-        $exchange = $shipment->exchangeRequest;
-        if (! $exchange) {
-            return back()->with('error', 'Exchange record missing for this shipment.');
+        try {
+            $order = $dealTermsService->applyForShipment($shipment, $validated);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
-        $baseItemAmount = (float) ($exchange->item?->price ?? 0);
-        $itemAmount = (float) ($validated['negotiated_item_amount'] ?? $baseItemAmount);
-        $shippingAmount = $this->estimateShippingCharge((string) ($exchange->sender?->address ?? ''), (string) ($exchange->receiver?->address ?? ''));
-        $platformFee = $this->calculatePlatformFee($itemAmount);
-        $totalAmount = $itemAmount + $shippingAmount + $platformFee;
-        $upfrontAmount = (float) ($validated['upfront_amount'] ?? $totalAmount);
-
-        if ($validated['payment_method'] === 'escrow') {
-            if ($upfrontAmount > $totalAmount) {
-                return back()->with('error', 'Upfront amount cannot be greater than total payable.');
-            }
-            if ($upfrontAmount < 1) {
-                return back()->with('error', 'Upfront amount must be at least INR 1.');
-            }
-        } else {
-            $upfrontAmount = 0.0;
-        }
-
-        $remainingAmount = max(0, round($totalAmount - $upfrontAmount, 2));
-        $requiresSecondPayment = $validated['payment_method'] === 'escrow' && $remainingAmount > 0;
-
-        $order = Order::query()->updateOrCreate(
-            ['shipment_id' => $shipment->id],
-            [
-                'buyer_id' => $exchange->sender_id,
-                'seller_id' => $exchange->receiver_id,
-                'payment_method' => $validated['payment_method'],
-                'gateway' => config('payments.default_gateway', 'razorpay'),
-                'item_amount' => $itemAmount,
-                'negotiated_item_amount' => $itemAmount,
-                'shipping_amount' => $shippingAmount,
-                'platform_fee' => $platformFee,
-                'total_amount' => $totalAmount,
-                'upfront_amount' => $upfrontAmount,
-                'remaining_amount' => $remainingAmount,
-                'second_payment_required_before_otp' => $requiresSecondPayment,
-                'payment_status' => 'pending',
-                'paid_at' => null,
-                'upfront_paid_at' => null,
-                'remaining_paid_at' => null,
-                'payment_reference' => null,
-                'upfront_payment_reference' => null,
-                'remaining_payment_reference' => null,
-                'gateway_order_id' => null,
-                'upfront_gateway_order_id' => null,
-                'remaining_gateway_order_id' => null,
-                'settlement_status' => 'pending',
-                'collected_at' => null,
-                'released_at' => null,
-                'delivery_verified_at' => null,
-            ]
-        );
 
         return back()->with('success', 'Payment section created. Order #'.$order->id.' is now active.');
     }
@@ -284,23 +235,6 @@ class ShipmentController extends Controller
         ]);
 
         return back()->with('success', 'OTP verified. Delivery and settlement completed.');
-    }
-
-    protected function estimateShippingCharge(string $from, string $to): float
-    {
-        if ($from !== '' && $to !== '' && strcasecmp(trim($from), trim($to)) === 0) {
-            return 49.0;
-        }
-
-        return 99.0;
-    }
-
-    protected function calculatePlatformFee(float $itemAmount): float
-    {
-        $percent = (float) config('payments.platform_fee_percent', 0);
-        $flat = (float) config('payments.platform_fee_flat', 0);
-
-        return round(($itemAmount * $percent / 100) + $flat, 2);
     }
 
     protected function authorizeShipmentAccess(Request $request, Shipment $shipment): void

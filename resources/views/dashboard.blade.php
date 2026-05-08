@@ -134,11 +134,28 @@
                 <h2>Active Exchanges</h2>
             </div>
             @forelse($activeExchanges as $exchange)
-                @php $other = auth()->id() === $exchange->sender_id ? $exchange->receiver : $exchange->sender; @endphp
+                @php
+                    $other = auth()->id() === $exchange->sender_id ? $exchange->receiver : $exchange->sender;
+                    $exchangeOrder = $exchange->shipment?->order;
+                    $isBuyerHere = auth()->id() === $exchange->sender_id;
+                    $upfrontPaid = $exchangeOrder && !empty($exchangeOrder->upfront_paid_at);
+                    $remainingRequired = $exchangeOrder && (float) ($exchangeOrder->remaining_amount ?? 0) > 0.0001;
+                    $remainingPaid = $exchangeOrder && !empty($exchangeOrder->remaining_paid_at);
+                    if (! $exchangeOrder) {
+                        $paymentLabel = 'Awaiting deal terms';
+                    } elseif (! $upfrontPaid) {
+                        $paymentLabel = 'Awaiting upfront payment';
+                    } elseif ($remainingRequired && ! $remainingPaid) {
+                        $paymentLabel = 'Final doorstep payment due';
+                    } else {
+                        $paymentLabel = 'Paid';
+                    }
+                @endphp
                 <article class="dash-row">
                     <div>
                         <strong>{{ $exchange->item?->title ?? 'Item removed' }}</strong>
                         <p>{{ $other?->name ?? 'User' }} · {{ $exchange->status }} · Shipment: {{ $exchange->shipment?->status ?? 'Not started' }}</p>
+                        <p class="dash-payment-line"><span class="shipment-state-pill">{{ $paymentLabel }}</span></p>
                         <div class="dash-confirmation-progress">
                             <div class="dash-confirm-pill {{ $exchange->sender_confirmed_at ? 'is-done' : 'is-pending' }}">
                                 <strong>Sender</strong>
@@ -153,6 +170,13 @@
                     <div class="dash-actions">
                         <a class="btn" href="{{ route('chat.index', $exchange) }}">Open chat</a>
                         @auth
+                            @if($isBuyerHere && $exchangeOrder && $exchangeOrder->payment_method === 'escrow' && (! $upfrontPaid || ($remainingRequired && ! $remainingPaid)))
+                                <a class="btn btn-primary" href="{{ route('payments.checkout', $exchangeOrder) }}">{{ ! $upfrontPaid ? 'Pay upfront' : 'Pay final amount' }}</a>
+                            @elseif(! $isBuyerHere && ! $exchangeOrder)
+                                <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $exchange) }}">Set deal terms</a>
+                            @else
+                                <a class="btn" href="{{ route('exchanges.deal-terms', $exchange) }}">View deal</a>
+                            @endif
                             <a class="btn" href="{{ route('shipments.index') }}">View shipment</a>
                         @else
                             <span class="muted">Login to track shipment</span>
@@ -173,10 +197,14 @@
                 <button type="button" class="btn dash-more-toggle" x-show="isMobile" @click="showInsights = !showInsights" x-text="showInsights ? 'Hide history' : 'Show history'"></button>
                 <div x-show="!isMobile || showInsights" x-transition.opacity.duration.200ms>
                 @forelse($completedExchanges as $exchange)
+                    @php
+                        $completedOrder = $exchange->shipment?->order;
+                        $completedPaid = $completedOrder && (string) $completedOrder->payment_status === 'paid';
+                    @endphp
                     <article class="dash-row">
                         <div>
                             <strong>{{ $exchange->item?->title ?? 'Item removed' }}</strong>
-                            <p>Completed {{ optional($exchange->updated_at)->format('d M Y') }}</p>
+                            <p>Completed {{ optional($exchange->updated_at)->format('d M Y') }} · <span class="shipment-state-pill">{{ $completedOrder ? ($completedPaid ? 'Paid' : ucfirst($completedOrder->payment_status ?? 'pending')) : 'No order' }}</span></p>
                         </div>
                     </article>
                 @empty

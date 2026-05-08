@@ -6,10 +6,11 @@ use App\Models\ExchangeRequest;
 use App\Models\Item;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Orders\DealTermsService;
 use App\Services\Shipping\ShippingService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class ExchangeRequestController extends Controller
@@ -129,6 +130,93 @@ class ExchangeRequestController extends Controller
         $exchangeRequest->load('item', 'sender', 'receiver', 'messages.sender');
 
         return view('exchanges.show', compact('exchangeRequest'));
+    }
+
+    public function dealTerms(Request $request, ExchangeRequest $exchangeRequest, ShippingService $shippingService, DealTermsService $dealTermsService): View|RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        abort_unless(in_array($user->id, [$exchangeRequest->sender_id, $exchangeRequest->receiver_id], true), 403);
+
+        if (! in_array($exchangeRequest->status, ['Accepted', 'In Progress', 'Completed'], true)) {
+            return redirect()->route('chat.index', $exchangeRequest)
+                ->with('error', 'Deal terms can be set only after the exchange is accepted.');
+        }
+
+        $missing = $this->missingContactFields($exchangeRequest);
+        if (! empty($missing)) {
+            return redirect()->route('profile.edit')
+                ->with('error', 'Both buyer and seller must add phone and address before deal terms can be set.');
+        }
+
+        $exchangeRequest->loadMissing(['item', 'sender', 'receiver', 'shipment.order']);
+
+        // Auto-create shipment so the seller can set terms before buyer confirms.
+        $shipment = $exchangeRequest->shipment;
+        if (! $shipment) {
+            $shipment = $shippingService->createShipmentForExchange($exchangeRequest);
+            $exchangeRequest->refresh()->loadMissing('shipment.order');
+        }
+
+        $order = $shipment?->order;
+        $estimate = $dealTermsService->estimatedTotalForExchange($exchangeRequest, $order?->negotiated_item_amount);
+        $isSeller = $user->id === $exchangeRequest->receiver_id;
+
+        return view('exchanges.deal-terms', [
+            'exchangeRequest' => $exchangeRequest,
+            'shipment' => $shipment,
+            'order' => $order,
+            'estimate' => $estimate,
+            'isSeller' => $isSeller,
+        ]);
+    }
+
+    public function dealTermsStore(Request $request, ExchangeRequest $exchangeRequest, ShippingService $shippingService, DealTermsService $dealTermsService): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        // Seller (receiver) only.
+        abort_unless($user->id === $exchangeRequest->receiver_id, 403);
+
+        if (! in_array($exchangeRequest->status, ['Accepted', 'In Progress'], true)) {
+            return back()->with('error', 'Deal terms can be set only on accepted exchanges.');
+        }
+
+        $missing = $this->missingContactFields($exchangeRequest);
+        if (! empty($missing)) {
+            return redirect()->route('profile.edit')
+                ->with('error', 'Both buyer and seller must add phone and address before deal terms can be set.');
+        }
+
+        $validated = $request->validate([
+            'payment_method' => 'required|in:escrow,cod',
+            'negotiated_item_amount' => 'nullable|numeric|min:1',
+            'upfront_amount' => 'nullable|numeric|min:1',
+        ]);
+
+        $exchangeRequest->loadMissing('shipment');
+        $shipment = $exchangeRequest->shipment ?: $shippingService->createShipmentForExchange($exchangeRequest);
+
+        try {
+            $order = $dealTermsService->applyForShipment($shipment, $validated);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        // Notify buyer in chat that deal terms are ready for review and payment.
+        Message::query()->create([
+            'exchange_request_id' => $exchangeRequest->id,
+            'sender_id' => $user->id,
+            'body' => 'Deal terms set. Total payable: INR '.number_format((float) $order->total_amount, 2)
+                .($order->payment_method === 'escrow'
+                    ? ' (Upfront INR '.number_format((float) $order->upfront_amount, 2).' via escrow).'
+                    : ' via COD.'),
+        ]);
+
+        return redirect()->route('exchanges.deal-terms', $exchangeRequest)
+            ->with('success', 'Deal terms saved. Buyer can now review and pay.');
     }
 
     public function updateStatus(Request $request, ExchangeRequest $exchangeRequest, ShippingService $shippingService)
