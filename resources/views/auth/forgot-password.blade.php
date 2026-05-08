@@ -1,6 +1,7 @@
 <x-guest-layout>
     @php
         $resetEmail = old('email', session('password_reset_email'));
+        $hasOtpResetRoute = \Illuminate\Support\Facades\Route::has('password.otp.reset');
         $otpStepVisible = session('otp_sent') || session()->has('password_reset_email') || $errors->has('otp') || $errors->has('password');
     @endphp
 
@@ -27,7 +28,7 @@
         <button type="submit" class="btn btn-primary auth-submit-btn">Send OTP</button>
     </form>
 
-    @if($otpStepVisible)
+    @if($otpStepVisible && $hasOtpResetRoute)
         <form method="POST" action="{{ route('password.otp.reset') }}" class="auth-form" style="margin-top: 14px;">
             @csrf
             <input type="hidden" name="email" value="{{ $resetEmail }}">
@@ -61,6 +62,8 @@
 
             <button type="submit" class="btn btn-primary auth-submit-btn">Verify OTP & Reset Password</button>
         </form>
+    @elseif($otpStepVisible && ! $hasOtpResetRoute)
+        <p class="auth-error" style="margin-top: 12px;">Password reset route not ready yet. Please refresh in a few seconds.</p>
     @endif
 
     <div class="auth-footer-box">
