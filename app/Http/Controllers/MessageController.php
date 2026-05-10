@@ -333,7 +333,7 @@ class MessageController extends Controller
                 'meta' => ($conversation->unread_messages_count ?? 0).' unread',
                 'timestamp' => optional($latestUnread?->created_at ?? $conversation->updated_at)?->timestamp ?? 0,
             ];
-        });
+        })->values();
 
         $requestItems = ExchangeRequest::query()
             ->with(['item', 'sender'])
@@ -350,10 +350,10 @@ class MessageController extends Controller
                     'meta' => 'Pending',
                     'timestamp' => optional($exchangeRequest->created_at)?->timestamp ?? 0,
                 ];
-            });
+            })->values();
 
-        $notificationItems = $messageItems
-            ->merge($requestItems)
+        $notificationItems = collect($messageItems->toArray())
+            ->merge($requestItems->toArray())
             ->sortByDesc('timestamp')
             ->take(6)
             ->values();

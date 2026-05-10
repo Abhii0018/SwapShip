@@ -139,7 +139,7 @@ class AppServiceProvider extends ServiceProvider
                     'meta' => ($conversation->unread_messages_count ?? 0).' unread',
                     'timestamp' => optional($latestUnread?->created_at ?? $conversation->updated_at)?->timestamp ?? 0,
                 ];
-            });
+            })->values();
 
             $requestItems = ExchangeRequest::query()
                 ->with(['item:id,title', 'sender:id,name'])
@@ -156,10 +156,10 @@ class AppServiceProvider extends ServiceProvider
                         'meta' => 'Pending',
                         'timestamp' => optional($request->created_at)?->timestamp ?? 0,
                     ];
-                });
+                })->values();
 
-            $notificationItems = collect($messageItems)
-                ->merge($requestItems)
+            $notificationItems = collect($messageItems->toArray())
+                ->merge($requestItems->toArray())
                 ->sortByDesc('timestamp')
                 ->take(6)
                 ->values();
