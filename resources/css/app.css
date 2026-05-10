@@ -3790,11 +3790,18 @@ input:focus, select:focus, textarea:focus {
 .chat-actions form {
     margin: 0;
 }
+.chat-actions .btn,
+.chat-actions .btn-primary,
+.chat-safety .btn,
+.chat-inline-note {
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.2;
+}
 .chat-inline-note {
     border: 1px solid rgba(255,255,255,.16);
     border-radius: 999px;
-    padding: 8px 12px;
-    font-size: 12px;
     color: rgba(255,255,255,.76);
     background: rgba(255,255,255,.03);
 }
@@ -3869,6 +3876,18 @@ input:focus, select:focus, textarea:focus {
     min-height: 44px;
     border-radius: 10px;
 }
+.chat-input .btn,
+.chat-input .btn-primary,
+.chat-input .chat-attach-btn,
+.chat-input .chat-voice-btn {
+    min-height: 42px;
+    padding: 8px 12px;
+    border-radius: 999px;
+}
+.chat-input .btn.btn-primary {
+    width: auto;
+    padding-inline: 16px;
+}
 
 .deal-shell {
     max-width: 1060px;
@@ -3927,6 +3946,15 @@ input:focus, select:focus, textarea:focus {
 }
 .deal-form .shipment-form-row {
     margin-bottom: 10px;
+}
+.deal-form .btn,
+.deal-form .btn-primary,
+.shipment-form-actions .btn,
+.shipment-form-actions .btn-primary {
+    padding: 8px 12px;
+    min-height: 40px;
+    border-radius: 10px;
+    font-size: 13px;
 }
 
 @media (max-width: 1024px) {
@@ -3993,8 +4021,8 @@ input:focus, select:focus, textarea:focus {
         order: 2;
     }
     .chat-input .btn.btn-primary {
-        grid-column: 1 / -1;
-        width: 100%;
+        width: auto;
+        grid-column: auto;
     }
     .deal-subtitle {
         font-size: 13px;
