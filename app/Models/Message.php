@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
 
 class Message extends Model
 {
@@ -25,6 +26,17 @@ class Message extends Model
         'deleted_for_sender_at' => 'datetime',
         'deleted_for_receiver_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (Message $message) {
+            Cache::forget('nav_notifications:' . $message->sender_id);
+        });
+
+        static::updated(function (Message $message) {
+            Cache::forget('nav_notifications:' . $message->sender_id);
+        });
+    }
 
     public function attachmentUrl(): ?string
     {

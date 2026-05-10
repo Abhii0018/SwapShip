@@ -448,12 +448,8 @@ class ItemController extends Controller
         $validated['type'] = $request->input('type', $request->input('listing_type', $item->type));
         unset($validated['listing_type']);
         if ($request->hasFile('bill')) {
-            $oldPath = ltrim(str_replace('/storage/', '', (string) $item->bill_url), '/');
-            if ($oldPath !== '') {
-                Storage::disk('public')->delete($oldPath);
-            }
-            $billPath = $request->file('bill')->store('item-bills', 'public');
-            $validated['bill_url'] = '/storage/'.$billPath;
+            $this->deleteBillFromStorage($item->bill_url);
+            $validated['bill_url'] = $this->uploadBillToCloudinary($request->file('bill'));
         }
         $item->update($validated);
 
@@ -842,5 +838,52 @@ class ItemController extends Controller
                 'secure' => true,
             ],
         ]);
+    }
+
+    protected function uploadBillToCloudinary(UploadedFile $file): string
+    {
+        if (! $this->isCloudinaryConfigured()) {
+            return '/storage/'.$file->store('item-bills', 'public');
+        }
+
+        try {
+            $upload = $this->cloudinaryClient()
+                ->uploadApi()
+                ->upload($file->getRealPath(), [
+                    'folder' => 'swapship_bills',
+                    'resource_type' => 'auto',
+                ]);
+
+            return (string) ($upload['secure_url'] ?? '');
+        } catch (\Throwable $e) {
+            Log::warning('Cloudinary bill upload failed.', ['message' => $e->getMessage()]);
+            return '/storage/'.$file->store('item-bills', 'public');
+        }
+    }
+
+    protected function deleteBillFromStorage(?string $url): void
+    {
+        if (empty($url)) {
+            return;
+        }
+
+        if (str_contains($url, 'res.cloudinary.com')) {
+            if (! $this->isCloudinaryConfigured()) {
+                return;
+            }
+            try {
+                $publicId = $this->extractCloudinaryPublicIdFromUrl($url);
+                if ($publicId) {
+                    $this->cloudinaryClient()->uploadApi()->destroy($publicId, ['resource_type' => 'auto']);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Cloudinary bill delete failed.', ['url' => $url, 'message' => $e->getMessage()]);
+            }
+        } elseif (str_starts_with($url, '/storage/')) {
+            $path = ltrim(str_replace('/storage/', '', $url), '/');
+            if ($path !== '') {
+                Storage::disk('public')->delete($path);
+            }
+        }
     }
 }

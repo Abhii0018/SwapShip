@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\ExchangeRequest;
 use App\Models\Message;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
@@ -63,6 +64,16 @@ class AppServiceProvider extends ServiceProvider
             if (! $user) {
                 $view->with('navNotificationCount', 0);
                 $view->with('navNotificationItems', collect());
+                return;
+            }
+
+            $cacheKey = 'nav_notifications:' . $user->id;
+            $ttl = 60; // 1 minute cache
+
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                $view->with('navNotificationCount', $cached['count']);
+                $view->with('navNotificationItems', collect($cached['items']));
                 return;
             }
 
@@ -155,6 +166,11 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('navNotificationCount', (int) ($pendingRequestCount + $unreadMessageCount));
             $view->with('navNotificationItems', $notificationItems);
+
+            Cache::put($cacheKey, [
+                'count' => (int) ($pendingRequestCount + $unreadMessageCount),
+                'items' => $notificationItems->toArray(),
+            ], $ttl);
         });
     }
 }

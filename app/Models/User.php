@@ -63,6 +63,9 @@ class User extends Authenticatable implements MustVerifyEmail
     public function profilePhotoUrl(): ?string
     {
         if ($this->profile_photo_path) {
+            if (str_contains((string) $this->profile_photo_path, 'res.cloudinary.com')) {
+                return $this->profile_photo_path;
+            }
             return '/storage/'.$this->profile_photo_path;
         }
 

@@ -35,15 +35,12 @@ Route::middleware('guest')->group(function () {
         ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:3,1')
         ->name('password.email');
     Route::post('forgot-password/otp-reset', [PasswordResetLinkController::class, 'resetWithOtp'])
         ->name('password.otp.reset');
 
-    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
-        ->name('password.reset');
-
-    Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->name('password.store');
+    // Reset password via OTP only (password.otp.reset)
 });
 
 Route::middleware('auth')->group(function () {

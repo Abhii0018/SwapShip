@@ -203,203 +203,203 @@
             </div>
         </form>
     </div>
-
-    <div id="profile-crop-modal" class="profile-crop-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Crop your profile photo">
-        <div class="profile-crop-backdrop" data-crop-cancel></div>
-        <div class="profile-crop-dialog" role="document">
-            <header class="profile-crop-head">
-                <div>
-                    <h3>Crop your photo</h3>
-                    <p>Drag the photo and pinch / scroll to zoom. The square area will become your circular avatar.</p>
-                </div>
-                <button type="button" class="profile-crop-close" data-crop-cancel aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </header>
-            <div class="profile-crop-stage">
-                <div class="profile-crop-canvas">
-                    <img id="profile-crop-image" alt="">
-                </div>
-            </div>
-            <div class="profile-crop-controls">
-                <button type="button" class="profile-crop-tool" data-crop-zoom-out aria-label="Zoom out">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="8" y1="11" x2="14" y2="11"></line><line x1="20" y1="20" x2="16.5" y2="16.5"></line></svg>
-                </button>
-                <button type="button" class="profile-crop-tool" data-crop-zoom-in aria-label="Zoom in">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="8" y1="11" x2="14" y2="11"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="20" y1="20" x2="16.5" y2="16.5"></line></svg>
-                </button>
-                <button type="button" class="profile-crop-tool" data-crop-rotate aria-label="Rotate 90 degrees">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15A9 9 0 1 1 18 6.36L23 10"></path></svg>
-                </button>
-                <button type="button" class="profile-crop-tool" data-crop-reset aria-label="Reset crop">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                </button>
-            </div>
-            <footer class="profile-crop-foot">
-                <button type="button" class="btn profile-crop-cancel" data-crop-cancel>Cancel</button>
-                <button type="button" class="btn btn-primary profile-crop-apply" id="profile-crop-apply">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    <span>Use this photo</span>
-                </button>
-            </footer>
-        </div>
-    </div>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js" defer></script>
-    <script>
-        (() => {
-            const fileInput = document.getElementById('profile_photo');
-            const fileName = document.getElementById('profile-photo-file-name');
-            const form = document.getElementById('profile-avatar-form');
-            const modal = document.getElementById('profile-crop-modal');
-            const cropImage = document.getElementById('profile-crop-image');
-            const applyBtn = document.getElementById('profile-crop-apply');
-            if (!fileInput || !fileName || !form || !modal || !cropImage || !applyBtn) return;
-
-            let cropper = null;
-            let lastObjectUrl = null;
-            let originalFile = null;
-
-            const closeModal = () => {
-                modal.hidden = true;
-                modal.setAttribute('aria-hidden', 'true');
-                document.body.classList.remove('profile-crop-open');
-                if (cropper) {
-                    cropper.destroy();
-                    cropper = null;
-                }
-                if (lastObjectUrl) {
-                    URL.revokeObjectURL(lastObjectUrl);
-                    lastObjectUrl = null;
-                }
-            };
-
-            const openModal = () => {
-                modal.hidden = false;
-                modal.setAttribute('aria-hidden', 'false');
-                document.body.classList.add('profile-crop-open');
-            };
-
-            const startCropper = () => {
-                if (!window.Cropper) {
-                    setTimeout(startCropper, 60);
-                    return;
-                }
-                cropper = new window.Cropper(cropImage, {
-                    aspectRatio: 1,
-                    viewMode: 1,
-                    dragMode: 'move',
-                    background: false,
-                    autoCropArea: 0.9,
-                    movable: true,
-                    zoomable: true,
-                    rotatable: true,
-                    scalable: false,
-                    cropBoxMovable: true,
-                    cropBoxResizable: true,
-                    responsive: true,
-                    minContainerHeight: 200,
-                    minContainerWidth: 200,
-                });
-            };
-
-            fileInput.addEventListener('change', () => {
-                const file = fileInput.files && fileInput.files[0];
-                if (!file) {
-                    fileName.textContent = 'No file selected';
-                    return;
-                }
-                if (!/^image\//.test(file.type)) {
-                    alert('Please choose a valid image file.');
-                    fileInput.value = '';
-                    return;
-                }
-                if (file.size > 4 * 1024 * 1024) {
-                    alert('Image too large. Please pick a file under 4 MB.');
-                    fileInput.value = '';
-                    return;
-                }
-                originalFile = file;
-                fileName.textContent = file.name;
-                if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl);
-                lastObjectUrl = URL.createObjectURL(file);
-                cropImage.src = lastObjectUrl;
-                openModal();
-                cropImage.onload = () => {
-                    if (cropper) cropper.destroy();
-                    startCropper();
-                };
-            });
-
-            modal.querySelectorAll('[data-crop-cancel]').forEach((el) => {
-                el.addEventListener('click', () => {
-                    fileInput.value = '';
-                    fileName.textContent = 'No file selected';
-                    closeModal();
-                });
-            });
-
-            modal.querySelector('[data-crop-zoom-in]')?.addEventListener('click', () => cropper?.zoom(0.1));
-            modal.querySelector('[data-crop-zoom-out]')?.addEventListener('click', () => cropper?.zoom(-0.1));
-            modal.querySelector('[data-crop-rotate]')?.addEventListener('click', () => cropper?.rotate(90));
-            modal.querySelector('[data-crop-reset]')?.addEventListener('click', () => cropper?.reset());
-
-            applyBtn.addEventListener('click', () => {
-                if (!cropper || !originalFile) return;
-                applyBtn.disabled = true;
-                applyBtn.classList.add('is-loading');
-                const canvas = cropper.getCroppedCanvas({
-                    width: 512,
-                    height: 512,
-                    imageSmoothingEnabled: true,
-                    imageSmoothingQuality: 'high',
-                    fillColor: '#fff',
-                });
-                if (!canvas) {
-                    applyBtn.disabled = false;
-                    applyBtn.classList.remove('is-loading');
-                    return;
-                }
-                const targetType = originalFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
-                const targetExt = targetType === 'image/png' ? 'png' : 'jpg';
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        applyBtn.disabled = false;
-                        applyBtn.classList.remove('is-loading');
-                        return;
-                    }
-                    const baseName = (originalFile.name || 'profile').replace(/\.[^.]+$/, '');
-                    const cropped = new File([blob], `${baseName}-cropped.${targetExt}`, { type: targetType });
-                    try {
-                        const dt = new DataTransfer();
-                        dt.items.add(cropped);
-                        fileInput.files = dt.files;
-                    } catch (e) {
-                        const hidden = document.createElement('input');
-                        hidden.type = 'hidden';
-                        hidden.name = 'profile_photo_data';
-                        hidden.value = canvas.toDataURL(targetType, 0.92);
-                        form.appendChild(hidden);
-                    }
-                    fileName.textContent = cropped.name;
-                    closeModal();
-                    form.submit();
-                }, targetType, 0.92);
-            });
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !modal.hidden) {
-                    fileInput.value = '';
-                    fileName.textContent = 'No file selected';
-                    closeModal();
-                }
-            });
-
-            const avatarInputs = document.querySelectorAll('#profile-avatar-form input[name="avatar_preset"]');
-            avatarInputs.forEach((input) => {
-                input.addEventListener('change', () => form.submit());
-            });
-        })();
-    </script>
 </section>
+
+<div id="profile-crop-modal" class="profile-crop-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Crop your profile photo">
+    <div class="profile-crop-backdrop" data-crop-cancel></div>
+    <div class="profile-crop-dialog" role="document">
+        <header class="profile-crop-head">
+            <div>
+                <h3>Crop your photo</h3>
+                <p>Drag the photo and pinch / scroll to zoom. The square area will become your circular avatar.</p>
+            </div>
+            <button type="button" class="profile-crop-close" data-crop-cancel aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </header>
+        <div class="profile-crop-stage">
+            <div class="profile-crop-canvas">
+                <img id="profile-crop-image" alt="">
+            </div>
+        </div>
+        <div class="profile-crop-controls">
+            <button type="button" class="profile-crop-tool" data-crop-zoom-out aria-label="Zoom out">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="8" y1="11" x2="14" y2="11"></line><line x1="20" y1="20" x2="16.5" y2="16.5"></line></svg>
+            </button>
+            <button type="button" class="profile-crop-tool" data-crop-zoom-in aria-label="Zoom in">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="8" y1="11" x2="14" y2="11"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="20" y1="20" x2="16.5" y2="16.5"></line></svg>
+            </button>
+            <button type="button" class="profile-crop-tool" data-crop-rotate aria-label="Rotate 90 degrees">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15A9 9 0 1 1 18 6.36L23 10"></path></svg>
+            </button>
+            <button type="button" class="profile-crop-tool" data-crop-reset aria-label="Reset crop">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            </button>
+        </div>
+        <footer class="profile-crop-foot">
+            <button type="button" class="btn profile-crop-cancel" data-crop-cancel>Cancel</button>
+            <button type="button" class="btn btn-primary profile-crop-apply" id="profile-crop-apply">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Use this photo</span>
+            </button>
+        </footer>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js" defer></script>
+<script>
+(() => {
+    const fileInput = document.getElementById('profile_photo');
+    const fileName = document.getElementById('profile-photo-file-name');
+    const form = document.getElementById('profile-avatar-form');
+    const modal = document.getElementById('profile-crop-modal');
+    const cropImage = document.getElementById('profile-crop-image');
+    const applyBtn = document.getElementById('profile-crop-apply');
+    if (!fileInput || !fileName || !form || !modal || !cropImage || !applyBtn) return;
+
+    let cropper = null;
+    let lastObjectUrl = null;
+    let originalFile = null;
+
+    const closeModal = () => {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('profile-crop-open');
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+        if (lastObjectUrl) {
+            URL.revokeObjectURL(lastObjectUrl);
+            lastObjectUrl = null;
+        }
+    };
+
+    const openModal = () => {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('profile-crop-open');
+    };
+
+    const startCropper = () => {
+        if (!window.Cropper) {
+            setTimeout(startCropper, 60);
+            return;
+        }
+        cropper = new window.Cropper(cropImage, {
+            aspectRatio: 1,
+            viewMode: 1,
+            dragMode: 'move',
+            background: false,
+            autoCropArea: 0.9,
+            movable: true,
+            zoomable: true,
+            rotatable: true,
+            scalable: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            responsive: true,
+            minContainerHeight: 200,
+            minContainerWidth: 200,
+        });
+    };
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+            fileName.textContent = 'No file selected';
+            return;
+        }
+        if (!/^image\//.test(file.type)) {
+            alert('Please choose a valid image file.');
+            fileInput.value = '';
+            return;
+        }
+        if (file.size > 4 * 1024 * 1024) {
+            alert('Image too large. Please pick a file under 4 MB.');
+            fileInput.value = '';
+            return;
+        }
+        originalFile = file;
+        fileName.textContent = file.name;
+        if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl);
+        lastObjectUrl = URL.createObjectURL(file);
+        cropImage.src = lastObjectUrl;
+        openModal();
+        cropImage.onload = () => {
+            if (cropper) cropper.destroy();
+            startCropper();
+        };
+    });
+
+    modal.querySelectorAll('[data-crop-cancel]').forEach((el) => {
+        el.addEventListener('click', () => {
+            fileInput.value = '';
+            fileName.textContent = 'No file selected';
+            closeModal();
+        });
+    });
+
+    modal.querySelector('[data-crop-zoom-in]')?.addEventListener('click', () => cropper?.zoom(0.1));
+    modal.querySelector('[data-crop-zoom-out]')?.addEventListener('click', () => cropper?.zoom(-0.1));
+    modal.querySelector('[data-crop-rotate]')?.addEventListener('click', () => cropper?.rotate(90));
+    modal.querySelector('[data-crop-reset]')?.addEventListener('click', () => cropper?.reset());
+
+    applyBtn.addEventListener('click', () => {
+        if (!cropper || !originalFile) return;
+        applyBtn.disabled = true;
+        applyBtn.classList.add('is-loading');
+        const canvas = cropper.getCroppedCanvas({
+            width: 512,
+            height: 512,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high',
+            fillColor: '#fff',
+        });
+        if (!canvas) {
+            applyBtn.disabled = false;
+            applyBtn.classList.remove('is-loading');
+            return;
+        }
+        const targetType = originalFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const targetExt = targetType === 'image/png' ? 'png' : 'jpg';
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                applyBtn.disabled = false;
+                applyBtn.classList.remove('is-loading');
+                return;
+            }
+            const baseName = (originalFile.name || 'profile').replace(/\.[^.]+$/, '');
+            const cropped = new File([blob], `${baseName}-cropped.${targetExt}`, { type: targetType });
+            try {
+                const dt = new DataTransfer();
+                dt.items.add(cropped);
+                fileInput.files = dt.files;
+            } catch (e) {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'profile_photo_data';
+                hidden.value = canvas.toDataURL(targetType, 0.92);
+                form.appendChild(hidden);
+            }
+            fileName.textContent = cropped.name;
+            closeModal();
+            form.submit();
+        }, targetType, 0.92);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) {
+            fileInput.value = '';
+            fileName.textContent = 'No file selected';
+            closeModal();
+        }
+    });
+
+    const avatarInputs = document.querySelectorAll('#profile-avatar-form input[name="avatar_preset"]');
+    avatarInputs.forEach((input) => {
+        input.addEventListener('change', () => form.submit());
+    });
+})();
+</script>
