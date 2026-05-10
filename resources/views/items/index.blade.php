@@ -61,8 +61,6 @@
             <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.sort === 'latest' }" @click="filters.sort = 'latest'; fetchItems()">Newest</button>
             <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.sort === 'price_low' }" @click="filters.sort = 'price_low'; fetchItems()">Price: low to high</button>
             <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.sort === 'price_high' }" @click="filters.sort = 'price_high'; fetchItems()">Price: high to low</button>
-            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.type === 'sell' }" @click="filters.type = filters.type === 'sell' ? '' : 'sell'; fetchItems()">For sale</button>
-            <button type="button" class="explore-quick-pill" :class="{ 'is-active': filters.type === 'exchange' }" @click="filters.type = filters.type === 'exchange' ? '' : 'exchange'; fetchItems()">Exchange</button>
             <button type="button" class="explore-quick-pill" :class="{ 'is-active': !!filters.recommended_first }" @click="filters.recommended_first = filters.recommended_first ? '' : '1'; fetchItems()">Recommended</button>
         </div>
 

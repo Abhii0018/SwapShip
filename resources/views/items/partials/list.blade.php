@@ -8,7 +8,7 @@
             <div class="explore-item-content">
                 <div class="explore-item-top">
                     <h3>{{ $item->title }}</h3>
-                    <span class="explore-type-pill">{{ ucfirst($item->type) }}</span>
+                    <span class="explore-type-pill">Sell</span>
                 </div>
                 <p class="muted">{{ ucfirst($item->condition) }} · {{ $item->location }}</p>
                 <div class="explore-meta-line">
@@ -23,12 +23,8 @@
                     </div>
                 @endif
 
-                @if(in_array($item->type, ['sell', 'both']) && $item->price)
+                @if($item->price)
                     <p class="explore-price">Price: ₹{{ number_format((float) $item->price, 2) }}</p>
-                @endif
-
-                @if(in_array($item->type, ['exchange', 'both']) && $item->exchange_preference)
-                    <p class="explore-exchange">Exchange for: {{ $item->exchange_preference }}</p>
                 @endif
 
                 <p class="explore-owner">Posted by {{ $item->user?->name ?? 'User' }}</p>

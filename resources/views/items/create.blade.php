@@ -2,6 +2,7 @@
     <section
         class="sell-shell"
         x-data="sellForm({
+            parentCategories: @js($parentCategories),
             categoryApi: '{{ route('items.suggest-categories') }}',
             locationApi: '{{ route('items.suggest-locations') }}',
             reverseApi: '{{ route('items.reverse-location') }}'
@@ -44,25 +45,38 @@
                         <small class="muted" x-show="titleHint" x-text="titleHint"></small>
                     </div>
 
-                    <div class="sell-field sell-autocomplete" @click.outside="closeSuggestions('category')">
-                        <label for="category">Category</label>
-                        <input
+                    <div class="sell-field sell-field-full" id="category-fields">
+                        <label for="parent_category">Category</label>
+                        <select
+                            id="parent_category"
+                            x-model="selectedParent"
+                            @change="updateSubcategories(); form.category = ''"
+                        >
+                            <option value="">Select category</option>
+                            <template x-for="parent in Object.keys(parentCategories)" :key="parent">
+                                <option :value="parent" x-text="parent"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div class="sell-field sell-field-full" x-show="selectedParent" x-transition>
+                        <label for="category">Subcategory</label>
+                        <select
                             id="category"
                             name="category"
                             x-model="form.category"
-                            @focus="openSuggestions('category')"
-                            @input.debounce.250ms="fetchSuggestions('category')"
-                            placeholder="Type category (Mobiles, Furniture, Books...)"
-                            autocomplete="off"
+                            @change="form.category = $event.target.value"
                             required
                         >
-                        <div class="sell-suggestions" x-show="isOpen('category')" x-transition.opacity.duration.120ms>
-                            <template x-for="option in categorySuggestions" :key="'cat-' + option">
-                                <button type="button" @click="pickSuggestion('category', option)" x-text="option"></button>
+                            <option value="">Select subcategory</option>
+                            <template x-for="sub in subcategories" :key="sub">
+                                <option :value="sub" x-text="sub"></option>
                             </template>
-                            <p x-show="!categorySuggestions.length">No suggestions yet</p>
-                        </div>
+                        </select>
+                        <small class="muted">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
                     </div>
+
+                    <div class="sell-field"></div>
 
                     <div class="sell-field">
                         <label for="condition">Condition</label>
@@ -82,24 +96,9 @@
 
             <section class="card sell-card" id="sell-setup">
                 <h2>Listing setup</h2>
-                <div class="sell-type-switch">
-                    @foreach(['sell' => 'Sell only', 'exchange' => 'Exchange only', 'both' => 'Sell and Exchange'] as $value => $label)
-                        <label class="sell-type-option">
-                            <input type="radio" name="type" value="{{ $value }}" x-model="form.type" @checked(old('type', 'sell') === $value)>
-                            <span>{{ $label }}</span>
-                        </label>
-                    @endforeach
-                </div>
-
-                <div class="sell-grid">
-                    <div class="sell-field" x-show="form.type === 'sell' || form.type === 'both'" x-transition>
+                <div class="sell-field">
                         <label for="price">Price (INR)</label>
-                        <input id="price" name="price" x-model="form.price" type="number" min="0" step="0.01" :placeholder="pricePlaceholder()">
-                    </div>
-
-                    <div class="sell-field" x-show="form.type === 'exchange' || form.type === 'both'" x-transition>
-                        <label for="exchange_preference">Exchange preference</label>
-                        <input id="exchange_preference" name="exchange_preference" x-model="form.exchange_preference" placeholder="e.g. Android phone or gaming laptop">
+                        <input id="price" name="price" x-model="form.price" type="number" min="0" step="0.01" placeholder="Set your selling price (e.g. 14999)">
                     </div>
 
                     <div class="sell-field sell-autocomplete" @click.outside="closeSuggestions('location')">
@@ -227,13 +226,15 @@
 
 <script>
     document.addEventListener('alpine:init', () => {
-        Alpine.data('sellForm', ({ categoryApi, locationApi, reverseApi }) => ({
+        Alpine.data('sellForm', ({ parentCategories, categoryApi, locationApi, reverseApi }) => ({
+            parentCategories,
             categoryApi,
             locationApi,
             reverseApi,
             maxImages: 3,
             openFor: null,
-            categorySuggestions: [],
+            selectedParent: '',
+            subcategories: [],
             locationSuggestions: [],
             mapStatus: 'Pin the exact area on map for better trust.',
             permissionHelp: '',
@@ -251,9 +252,7 @@
                 location_lat: @js(old('location_lat', '')),
                 location_lng: @js(old('location_lng', '')),
                 item_age: @js(old('item_age', '')),
-                type: @js(old('type', 'sell')),
                 price: @js(old('price', '')),
-                exchange_preference: @js(old('exchange_preference', '')),
                 description: @js(old('description', '')),
                 notes: @js(old('notes', '')),
             },
@@ -264,7 +263,24 @@
                 this.$nextTick(() => {
                     this.initMap();
                     this.checkGeoPermission();
+                    if (this.form.category) {
+                        for (const [parent, subs] of Object.entries(this.parentCategories)) {
+                            if (subs.includes(this.form.category)) {
+                                this.selectedParent = parent;
+                                this.subcategories = subs;
+                                break;
+                            }
+                        }
+                    }
                 });
+            },
+
+            updateSubcategories() {
+                if (this.selectedParent && this.parentCategories[this.selectedParent]) {
+                    this.subcategories = this.parentCategories[this.selectedParent];
+                } else {
+                    this.subcategories = [];
+                }
             },
 
             async checkGeoPermission() {
@@ -319,18 +335,14 @@
             },
 
             async fetchSuggestions(kind) {
-                const query = (this.form[kind] || '').trim();
+                if (kind !== 'location') return;
+                const query = (this.form.location || '').trim();
                 if (query.length < 2) {
-                    if (kind === 'category') {
-                        this.categorySuggestions = [];
-                    } else {
-                        this.locationSuggestions = [];
-                    }
+                    this.locationSuggestions = [];
                     return;
                 }
 
-                const api = kind === 'category' ? this.categoryApi : this.locationApi;
-                const response = await fetch(`${api}?q=${encodeURIComponent(query)}`, {
+                const response = await fetch(`${this.locationApi}?q=${encodeURIComponent(query)}`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
@@ -340,11 +352,7 @@
                     return;
                 }
                 const data = await response.json();
-                if (kind === 'category') {
-                    this.categorySuggestions = data.suggestions || [];
-                } else {
-                    this.locationSuggestions = data.suggestions || [];
-                }
+                this.locationSuggestions = data.suggestions || [];
             },
 
             pickSuggestion(kind, value) {
@@ -451,16 +459,6 @@
             syncImageInput() {
                 const files = this.selectedImages.map((img) => img.file);
                 this.$refs.imageInput.files = this.filesToFileList(files);
-            },
-
-            pricePlaceholder() {
-                if (this.form.type === 'sell') {
-                    return 'Set your selling price instantly (e.g. 14999)';
-                }
-                if (this.form.type === 'both') {
-                    return 'Optional price if you also want to sell (e.g. 14999)';
-                }
-                return 'Price not required for exchange only';
             },
 
             initMap() {
@@ -767,13 +765,12 @@
                     location_lat: '',
                     location_lng: '',
                     item_age: '',
-                    type: 'sell',
                     price: '',
-                    exchange_preference: '',
                     description: '',
                     notes: '',
                 };
-                this.categorySuggestions = [];
+                this.selectedParent = '';
+                this.subcategories = [];
                 this.locationSuggestions = [];
                 this.selectedImages = [];
                 this.$refs.imageInput.value = '';

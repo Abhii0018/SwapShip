@@ -19,6 +19,80 @@ use Illuminate\View\View;
 
 class ItemController extends Controller
 {
+    private const CATEGORIES = [
+        'Electronics' => [
+            'Mobiles',
+            'Laptops',
+            'Tablets',
+            'Smart Watches',
+            'Headphones',
+            'Cameras',
+            'TVs',
+            'Gaming Consoles',
+            'Home Appliances',
+            'Speakers',
+            'Accessories',
+        ],
+        'Fashion' => [
+            "Men's Clothing",
+            "Women's Clothing",
+            'Footwear',
+            'Bags & Wallets',
+            'Accessories',
+            'Watches',
+            'Jewellery',
+            'Sunglasses',
+        ],
+        'Books & Learning' => [
+            'Books',
+            'E-Books',
+            'Study Materials',
+            'Courses',
+            'Stationery',
+            'Educational Kits',
+        ],
+        'Home & Furniture' => [
+            'Furniture',
+            'Home Decor',
+            'Kitchenware',
+            'Bedding',
+            'Bathroom Accessories',
+            'Garden & Outdoor',
+        ],
+        'Sports & Fitness' => [
+            'Gym Equipment',
+            'Sports Gear',
+            'Cycling',
+            'Outdoor Activities',
+            'Fitness Wear',
+            'Yoga & Meditation',
+        ],
+        'Vehicles' => [
+            'Cars',
+            'Bikes',
+            'Scooters',
+            'Spare Parts',
+            'Vehicle Accessories',
+            'GPS & Electronics',
+        ],
+        'Toys & Games' => [
+            'Board Games',
+            'Video Games',
+            'Action Figures',
+            'Puzzles',
+            'Remote Control',
+            'Dolls & Plush',
+        ],
+        'Others' => [
+            'Musical Instruments',
+            'Art & Craft',
+            'Pet Supplies',
+            'Baby Products',
+            'Health & Beauty',
+            'Miscellaneous',
+        ],
+    ];
+
     public function landing(): View
     {
         $featuredItems = Item::with('images')
@@ -111,10 +185,10 @@ class ItemController extends Controller
                 ->with('error', 'Complete your profile before posting an item.');
         }
 
-        $categories = Item::query()->select('category')->distinct()->orderBy('category')->pluck('category');
         $conditions = ['new', 'like new', 'used'];
+        $parentCategories = self::CATEGORIES;
 
-        return view('items.create', compact('categories', 'conditions'));
+        return view('items.create', compact('categories', 'conditions', 'parentCategories'));
     }
 
     public function suggestLocations(Request $request): JsonResponse
@@ -184,41 +258,47 @@ class ItemController extends Controller
     public function suggestCategories(Request $request): JsonResponse
     {
         $query = trim((string) $request->input('q', ''));
+        $qLen = mb_strlen($query);
 
-        $seeded = collect([
-            'Mobiles',
-            'Laptops',
-            'Tablets',
-            'Headphones',
-            'Smart Watches',
-            'Books',
-            'Furniture',
-            'Fashion',
-            'Sports Equipment',
-            'Home Appliances',
-            'Gaming Consoles',
-            'Camera & Accessories',
-        ]);
+        $results = [];
 
-        $fromItems = Item::query()
-            ->select('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
+        if ($qLen === 0) {
+            $results = array_keys(self::CATEGORIES);
+        } else {
+            foreach (self::CATEGORIES as $parent => $subs) {
+                $parentMatch = str_contains(mb_strtolower($parent), mb_strtolower($query));
+                $matchedSubs = [];
+                foreach ($subs as $sub) {
+                    if (str_contains(mb_strtolower($sub), mb_strtolower($query))) {
+                        $matchedSubs[] = $sub;
+                    }
+                }
+                if ($parentMatch || count($matchedSubs) > 0) {
+                    if ($parentMatch) {
+                        $results[] = $parent;
+                    }
+                    foreach ($matchedSubs as $m) {
+                        if (!in_array($m, $results, true)) {
+                            $results[] = $m;
+                        }
+                    }
+                }
+            }
 
-        $suggestions = $seeded
-            ->merge($fromItems)
-            ->map(fn ($item) => trim((string) $item))
-            ->filter()
-            ->unique();
-
-        if ($query !== '') {
-            $lowered = mb_strtolower($query);
-            $suggestions = $suggestions->filter(fn ($item) => str_contains(mb_strtolower($item), $lowered));
+            $fromItems = Item::query()
+                ->select('category')
+                ->distinct()
+                ->where('category', 'like', '%'.$query.'%')
+                ->pluck('category');
+            foreach ($fromItems as $cat) {
+                if (!in_array($cat, $results, true)) {
+                    $results[] = $cat;
+                }
+            }
         }
 
         return response()->json([
-            'suggestions' => $suggestions->take(10)->values()->all(),
+            'suggestions' => array_slice($results, 0, 12),
         ]);
     }
 
@@ -335,10 +415,7 @@ class ItemController extends Controller
             'category' => 'required|string|max:100',
             'condition' => 'required|string|max:100',
             'item_age' => 'required|string|max:100',
-            'type' => 'nullable|in:sell,exchange,both',
-            'listing_type' => 'nullable|in:sell,exchange,both',
-            'price' => 'nullable|numeric|min:0',
-            'exchange_preference' => 'nullable|string|max:255',
+            'price' => 'required|numeric|min:0',
             'location' => 'required|string|max:255',
             'location_lat' => 'nullable|numeric|between:-90,90',
             'location_lng' => 'nullable|numeric|between:-180,180',
@@ -348,26 +425,10 @@ class ItemController extends Controller
             'bill' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ];
 
-        $listingType = $request->input('type', $request->input('listing_type'));
-
-        if (! $listingType) {
-            $rules['type'] = 'required|in:sell,exchange,both';
-            $rules['listing_type'] = 'required|in:sell,exchange,both';
-        }
-
-        if (in_array($listingType, ['sell', 'both'], true)) {
-            $rules['price'] = 'required|numeric|min:0';
-        }
-
-        if (in_array($listingType, ['exchange', 'both'], true)) {
-            $rules['exchange_preference'] = 'required|string|max:255';
-        }
-
         $validated = $request->validate($rules);
-        $validated['type'] = $listingType;
-        unset($validated['listing_type']);
         unset($validated['images'], $validated['bill']);
         $validated['user_id'] = $request->user()->id;
+        $validated['type'] = 'sell';
 
         if ($request->hasFile('bill')) {
             $billPath = $request->file('bill')->store('item-bills', 'public');
@@ -420,7 +481,10 @@ class ItemController extends Controller
             abort(403);
         }
 
-        return view('items.edit', compact('item'));
+        $conditions = ['new', 'like new', 'used'];
+        $parentCategories = self::CATEGORIES;
+
+        return view('items.edit', compact('item', 'conditions', 'parentCategories'));
     }
 
     public function update(Request $request, Item $item)
@@ -435,18 +499,14 @@ class ItemController extends Controller
             'category' => 'required|string|max:100',
             'condition' => 'required|string|max:100',
             'item_age' => 'required|string|max:100',
-            'type' => 'nullable|in:sell,exchange,both',
-            'listing_type' => 'nullable|in:sell,exchange,both',
-            'price' => 'nullable|numeric|min:0',
-            'exchange_preference' => 'nullable|string|max:255',
+            'price' => 'required|numeric|min:0',
             'location' => 'required|string|max:255',
             'location_lat' => 'nullable|numeric|between:-90,90',
             'location_lng' => 'nullable|numeric|between:-180,180',
             'notes' => 'nullable|string',
             'bill' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
-        $validated['type'] = $request->input('type', $request->input('listing_type', $item->type));
-        unset($validated['listing_type']);
+        $validated['type'] = 'sell';
         if ($request->hasFile('bill')) {
             $this->deleteBillFromStorage($item->bill_url);
             $validated['bill_url'] = $this->uploadBillToCloudinary($request->file('bill'));

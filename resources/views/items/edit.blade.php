@@ -5,12 +5,28 @@
             @csrf
             @method('PUT')
             <div><label>Title</label><input name="title" value="{{ old('title', $item->title) }}" required></div>
-            <div><label>Category</label><input name="category" value="{{ old('category', $item->category) }}" required></div>
-            <div><label>Condition</label><input name="condition" value="{{ old('condition', $item->condition) }}" required></div>
+            <div>
+                <label>Category</label>
+                <select name="category" required>
+                    <option value="">Select subcategory</option>
+                    @foreach($parentCategories as $parent => $subs)
+                        <optgroup label="{{ $parent }}">
+                            @foreach($subs as $sub)
+                                <option value="{{ $sub }}" @selected(old('category', $item->category) === $sub)>{{ $sub }}</option>
+                            @endforeach
+                        </optgroup>
+                    @endforeach
+                </select>
+            </div>
+            <div><label>Condition</label>
+                <select name="condition" required>
+                    @foreach($conditions as $condition)
+                        <option value="{{ $condition }}" @selected(old('condition', $item->condition) === $condition)>{{ ucfirst($condition) }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div><label>Item age</label><input name="item_age" value="{{ old('item_age', $item->item_age) }}" required></div>
-            <div><label>Type</label><select name="type" required>@foreach(['sell','exchange','both'] as $type)<option value="{{ $type }}" @selected(old('type', $item->type)===$type)>{{ $type }}</option>@endforeach</select></div>
-            <div><label>Price</label><input name="price" type="number" step="0.01" value="{{ old('price', $item->price) }}"></div>
-            <div><label>Exchange preference</label><input name="exchange_preference" value="{{ old('exchange_preference', $item->exchange_preference) }}"></div>
+            <div><label>Price (INR)</label><input name="price" type="number" step="0.01" value="{{ old('price', $item->price) }}" required></div>
             <div><label>Location</label><input name="location" value="{{ old('location', $item->location) }}" required></div>
             <div><label>Update bill (optional)</label><input name="bill" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
             <div style="grid-column:1 / -1;"><label>Description</label><textarea name="description">{{ old('description', $item->description) }}</textarea></div>
