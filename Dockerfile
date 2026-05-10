@@ -23,7 +23,6 @@ WORKDIR /var/www
 COPY . .
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
-
 COPY --from=assets /app/public/build /var/www/public/build
 
 RUN chmod -R 775 storage bootstrap/cache
