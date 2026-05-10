@@ -19,8 +19,8 @@ Route::get('/healthz', fn () => response()->json([
 
 Route::get('/', [ItemController::class, 'landing'])->name('home');
 Route::get('/explore', [ItemController::class, 'index'])->name('items.index');
-Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
 Route::get('/add-item', [ItemController::class, 'create'])->name('items.create');
+Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
 Route::post('/items', [ItemController::class, 'store'])->name('items.store');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/my-exchanges', [ExchangeRequestController::class, 'index'])->name('exchanges.index');
