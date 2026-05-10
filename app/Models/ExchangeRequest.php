@@ -16,11 +16,17 @@ class ExchangeRequest extends Model
         'status',
         'sender_confirmed_at',
         'receiver_confirmed_at',
+        'shipment_requested_at',
+        'shipment_requested_by',
+        'shipment_approved_at',
+        'shipment_approved_by',
     ];
 
     protected $casts = [
         'sender_confirmed_at' => 'datetime',
         'receiver_confirmed_at' => 'datetime',
+        'shipment_requested_at' => 'datetime',
+        'shipment_approved_at' => 'datetime',
     ];
 
     public function sender(): BelongsTo

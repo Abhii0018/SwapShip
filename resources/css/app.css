@@ -3630,6 +3630,380 @@ input:focus, select:focus, textarea:focus {
     50% { text-shadow: 0 0 10px rgba(191,255,0,.35); }
 }
 
+/* Chat and deal terms surfaces */
+.chat-shell {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+.chat-sidebar,
+.chat-main {
+    border: 1px solid rgba(191,255,0,.16);
+    background:
+        radial-gradient(circle at top right, rgba(191,255,0,.08), transparent 44%),
+        linear-gradient(170deg, rgba(10,14,24,.92), rgba(8,10,20,.9));
+}
+.chat-sidebar {
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+    max-height: calc(100vh - 138px);
+    overflow: auto;
+}
+.chat-main {
+    padding: 14px;
+    min-height: 74vh;
+    display: grid;
+    gap: 12px;
+}
+.chat-thread {
+    position: relative;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 14px;
+    padding: 10px;
+    background: rgba(255,255,255,.03);
+    color: inherit;
+}
+.chat-thread.is-active {
+    border-color: rgba(191,255,0,.44);
+    background: linear-gradient(150deg, rgba(191,255,0,.13), rgba(255,255,255,.04));
+    box-shadow: 0 10px 22px rgba(0,0,0,.25);
+}
+.chat-thread-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,.7);
+}
+.chat-thread-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.chat-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.9);
+}
+.chat-thread-item {
+    margin: 8px 0 4px;
+    color: #d9ff7a;
+    font-size: 14px;
+    font-weight: 600;
+}
+.chat-thread-preview {
+    margin: 0;
+    color: rgba(255,255,255,.74);
+    font-size: 14px;
+}
+.chat-unread {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    display: grid;
+    place-items: center;
+    background: #bfff00;
+    color: #081100;
+    font-weight: 700;
+}
+.chat-context {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 12px;
+    background: rgba(255,255,255,.02);
+}
+.chat-context-title {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: clamp(1.3rem, 2.2vw, 2rem);
+}
+.chat-context-sub,
+.chat-context-presence {
+    margin: 6px 0 0;
+    color: rgba(255,255,255,.72);
+}
+.chat-status-pill {
+    border: 1px solid rgba(191,255,0,.35);
+    background: rgba(191,255,0,.11);
+    color: #d8ff67;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.chat-confirmation-progress {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.chat-confirm-pill {
+    border-radius: 12px;
+    padding: 9px 10px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.03);
+    display: grid;
+    gap: 4px;
+}
+.chat-confirm-pill strong {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.chat-confirm-pill span {
+    font-size: 13px;
+    color: rgba(255,255,255,.74);
+}
+.chat-confirm-pill.is-done {
+    border-color: rgba(191,255,0,.45);
+    background: rgba(191,255,0,.1);
+}
+.chat-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.chat-actions form {
+    margin: 0;
+}
+.chat-inline-note {
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: rgba(255,255,255,.76);
+    background: rgba(255,255,255,.03);
+}
+.chat-flow-banner {
+    width: 100%;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    display: grid;
+    gap: 2px;
+}
+.chat-flow-banner strong {
+    font-size: 13px;
+}
+.chat-flow-banner span {
+    font-size: 12px;
+    color: rgba(255,255,255,.78);
+}
+.chat-flow-banner.is-waiting {
+    background: rgba(248,191,67,.09);
+    border-color: rgba(248,191,67,.45);
+}
+.chat-flow-banner.is-ready {
+    background: rgba(191,255,0,.1);
+    border-color: rgba(191,255,0,.35);
+}
+.chat-window {
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 14px;
+    padding: 12px;
+    min-height: 320px;
+    max-height: 55vh;
+    overflow: auto;
+    background: linear-gradient(170deg, rgba(7,15,24,.9), rgba(6,12,22,.84));
+}
+.chat-bubble {
+    max-width: min(560px, 92%);
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.04);
+}
+.chat-bubble.is-self {
+    margin-left: auto;
+    border-color: rgba(191,255,0,.42);
+    background: rgba(191,255,0,.14);
+}
+.chat-date-chip {
+    margin: 10px auto;
+    width: fit-content;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.74);
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.03);
+}
+.chat-input {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.02);
+}
+.chat-input input[name="body"] {
+    min-height: 44px;
+    border-radius: 10px;
+}
+
+.deal-shell {
+    max-width: 1060px;
+    margin: 0 auto;
+}
+.deal-head {
+    align-items: end;
+}
+.deal-subtitle {
+    margin: 10px 0 0;
+    color: rgba(255,255,255,.72);
+    max-width: 64ch;
+    line-height: 1.55;
+}
+.deal-flow-strip {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+.deal-flow-step {
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(255,255,255,.02);
+    display: grid;
+    gap: 6px;
+}
+.deal-flow-step strong {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.18);
+}
+.deal-flow-step span {
+    font-size: 12px;
+    color: rgba(255,255,255,.75);
+}
+.deal-flow-step.is-active {
+    border-color: rgba(248,191,67,.45);
+    background: rgba(248,191,67,.08);
+}
+.deal-flow-step.is-done {
+    border-color: rgba(191,255,0,.36);
+    background: rgba(191,255,0,.1);
+}
+.deal-section-head h3 {
+    margin: 0;
+    font-size: clamp(1.1rem, 2.2vw, 1.42rem);
+}
+.deal-form {
+    margin-top: 10px;
+}
+.deal-form .shipment-form-row {
+    margin-bottom: 10px;
+}
+
+@media (max-width: 1024px) {
+    .chat-shell {
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 12px;
+    }
+    .chat-main {
+        min-height: 68vh;
+    }
+    .deal-flow-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .chat-shell {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .chat-sidebar {
+        max-height: none;
+        order: 2;
+    }
+    .chat-main {
+        order: 1;
+        padding: 10px;
+        min-height: auto;
+    }
+    .chat-context {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .chat-context-right {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+    .chat-safety {
+        display: flex;
+        gap: 6px;
+    }
+    .chat-safety .btn {
+        min-height: 34px;
+        padding: 6px 10px;
+    }
+    .chat-confirmation-progress {
+        grid-template-columns: 1fr;
+    }
+    .chat-window {
+        max-height: 48vh;
+        min-height: 260px;
+        padding: 10px;
+    }
+    .chat-bubble {
+        max-width: 96%;
+    }
+    .chat-input {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+    .chat-input .chat-attach-btn {
+        order: 2;
+    }
+    .chat-input .btn.btn-primary {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+    .deal-subtitle {
+        font-size: 13px;
+    }
+    .deal-flow-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Auth pages */
 .auth-page {
     min-height: 100vh;

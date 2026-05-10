@@ -41,6 +41,12 @@
                     $otherUser = (($actorId ?? auth()->id()) === $activeConversation->sender_id) ? $activeConversation->receiver : $activeConversation->sender;
                     $canModerate = ($actorId ?? auth()->id()) === $activeConversation->receiver_id;
                     $isSender = ($actorId ?? auth()->id()) === $activeConversation->sender_id;
+                    $shipmentRequested = !empty($activeConversation->shipment_requested_at);
+                    $shipmentApproved = !empty($activeConversation->shipment_approved_at);
+                    $canRequestShipment = $isSender && in_array($activeConversation->status, ['Accepted', 'In Progress'], true) && !$shipmentRequested;
+                    $awaitingSellerApproval = $isSender && $shipmentRequested && !$shipmentApproved;
+                    $canApproveShipment = !$isSender && $shipmentRequested && !$shipmentApproved;
+                    $dealTermsUnlocked = $shipmentApproved;
                     $otherUserAge = filled($otherUser?->age) ? $otherUser->age : 'Not added';
                     $otherUserAddress = filled($otherUser?->address) ? $otherUser->address : 'Not added';
                     $otherUserCity = filled($otherUser?->city) ? $otherUser->city : 'Not added';
@@ -103,6 +109,21 @@
                 </header>
 
                 <section class="chat-actions">
+                    @if(in_array($activeConversation->status, ['Accepted', 'In Progress'], true))
+                        <div class="chat-flow-banner {{ $dealTermsUnlocked ? 'is-ready' : 'is-waiting' }}">
+                            @if($dealTermsUnlocked)
+                                <strong>Deal terms unlocked.</strong>
+                                <span>Seller can set final upfront amount and buyer will see the same amount instantly.</span>
+                            @elseif($shipmentRequested)
+                                <strong>Shipment requested.</strong>
+                                <span>Waiting for seller approval to unlock deal terms.</span>
+                            @else
+                                <strong>Next step:</strong>
+                                <span>Buyer must request shipment process first.</span>
+                            @endif
+                        </div>
+                    @endif
+
                     @if(!$contactReady && auth()->check())
                         <a class="btn" href="{{ route('profile.edit') }}">Complete phone/address to continue</a>
                     @endif
@@ -132,12 +153,30 @@
                             <button type="submit" class="btn btn-primary">Confirm Exchange</button>
                         </form>
                     @elseif(in_array($activeConversation->status, ['Accepted', 'In Progress'], true))
-                        @if(!$isSender)
-                            <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $activeConversation) }}">Set deal terms</a>
-                        @else
-                            <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $activeConversation) }}">View deal &amp; pay</a>
+                        @if($canRequestShipment)
+                            <form method="POST" action="{{ route('exchanges.shipment-request', $activeConversation) }}">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn btn-primary">Proceed to shipment process</button>
+                            </form>
+                        @elseif($awaitingSellerApproval)
+                            <span class="chat-inline-note">Shipment request sent. Waiting for seller approval.</span>
+                        @elseif($canApproveShipment)
+                            <form method="POST" action="{{ route('exchanges.shipment-approve', $activeConversation) }}">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn btn-primary">Approve shipment request</button>
+                            </form>
                         @endif
-                        <a class="btn" href="{{ route('shipments.index') }}">Proceed to shipment</a>
+
+                        @if($dealTermsUnlocked)
+                            @if(!$isSender)
+                                <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $activeConversation) }}">Set deal terms</a>
+                            @else
+                                <a class="btn btn-primary" href="{{ route('exchanges.deal-terms', $activeConversation) }}">View deal &amp; pay</a>
+                            @endif
+                            <a class="btn" href="{{ route('shipments.index') }}">Open shipment status</a>
+                        @endif
                     @elseif($activeConversation->status === 'Completed')
                         <a class="btn" href="{{ route('shipments.index') }}">View shipment status</a>
                     @endif

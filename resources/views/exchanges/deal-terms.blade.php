@@ -21,14 +21,34 @@
         </a>
     </div>
 
-    <section class="card shipment-shell">
-        <header class="shipment-head">
+    <section class="card shipment-shell deal-shell">
+        <header class="shipment-head deal-head">
             <div>
                 <p class="shipment-kicker">Deal Terms</p>
                 <h2>{{ $item?->title ?? 'Listing' }}</h2>
+                <p class="deal-subtitle">Finalize payment structure, confirm upfront amount, and keep both buyer and seller aligned before shipment progression.</p>
             </div>
             <span class="shipment-status">{{ ucfirst($effectivePaymentStatus) }}</span>
         </header>
+
+        <div class="deal-flow-strip" aria-label="Deal flow steps">
+            <div class="deal-flow-step is-done">
+                <strong>1</strong>
+                <span>Shipment request approved</span>
+            </div>
+            <div class="deal-flow-step {{ $hasOrder ? 'is-done' : 'is-active' }}">
+                <strong>2</strong>
+                <span>{{ $isSeller ? 'Set pricing and upfront' : 'Review seller terms' }}</span>
+            </div>
+            <div class="deal-flow-step {{ $upfrontPaid ? 'is-done' : '' }}">
+                <strong>3</strong>
+                <span>Buyer upfront payment</span>
+            </div>
+            <div class="deal-flow-step {{ $upfrontPaid ? 'is-active' : '' }}">
+                <strong>4</strong>
+                <span>Shipment moves further</span>
+            </div>
+        </div>
 
         @if(session('success'))
             <p class="alert alert-success">{{ session('success') }}</p>
@@ -37,7 +57,7 @@
             <p class="alert alert-error">{{ session('error') }}</p>
         @endif
 
-        <div class="shipment-meta-grid">
+        <div class="shipment-meta-grid deal-meta-grid">
             <div class="shipment-meta-pill">
                 <span>Buyer</span>
                 <strong>{{ $sender?->name ?? 'Buyer' }}</strong>
@@ -59,10 +79,12 @@
         </div>
 
         @if($isSeller)
-            <h3 style="margin-top: 24px;">Set or update deal terms</h3>
-            <p class="muted">Choose the payment method and finalise the price the buyer will pay. Buyer is notified in chat when you save.</p>
+            <div class="deal-section-head">
+                <h3>Set or update deal terms</h3>
+                <p class="muted">Choose payment method, set final item price, and define upfront amount. Buyer sees exactly the same amounts in their panel.</p>
+            </div>
 
-            <form method="POST" action="{{ route('exchanges.deal-terms.store', $exchangeRequest) }}" class="shipment-form">
+            <form method="POST" action="{{ route('exchanges.deal-terms.store', $exchangeRequest) }}" class="shipment-form deal-form">
                 @csrf
 
                 <div class="shipment-form-row">
@@ -115,7 +137,10 @@
         @endif
 
         @if($hasOrder)
-            <h3 style="margin-top: 24px;">Buyer summary</h3>
+            <div class="deal-section-head" style="margin-top: 24px;">
+                <h3>{{ $isSeller ? 'Buyer summary' : 'Your payment summary' }}</h3>
+                <p class="muted">These totals are synced from seller terms. Upfront and remaining values always match both sides.</p>
+            </div>
             <div class="shipment-breakdown-grid">
                 <div class="shipment-breakdown-pill">
                     <span>Method</span>
@@ -175,7 +200,7 @@
             @endif
         @else
             @if(! $isSeller)
-                <p class="muted" style="margin-top: 16px;">Seller has not set deal terms yet. You will be notified in chat once they do.</p>
+                <p class="muted" style="margin-top: 16px;">Seller has not set deal terms yet. You will be notified in chat once they are saved.</p>
             @endif
         @endif
     </section>

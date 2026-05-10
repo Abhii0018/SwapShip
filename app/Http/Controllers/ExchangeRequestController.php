@@ -143,6 +143,11 @@ class ExchangeRequestController extends Controller
                 ->with('error', 'Deal terms can be set only after the exchange is accepted.');
         }
 
+        if (! $exchangeRequest->shipment_approved_at) {
+            return redirect()->route('chat.index', $exchangeRequest)
+                ->with('error', 'Buyer must request shipment and seller must approve before deal terms are available.');
+        }
+
         $missing = $this->missingContactFields($exchangeRequest);
         if (! empty($missing)) {
             return redirect()->route('profile.edit')
@@ -182,6 +187,10 @@ class ExchangeRequestController extends Controller
             return back()->with('error', 'Deal terms can be set only on accepted exchanges.');
         }
 
+        if (! $exchangeRequest->shipment_approved_at) {
+            return back()->with('error', 'Approve shipment request before setting deal terms.');
+        }
+
         $missing = $this->missingContactFields($exchangeRequest);
         if (! empty($missing)) {
             return redirect()->route('profile.edit')
@@ -219,6 +228,68 @@ class ExchangeRequestController extends Controller
             ->with('success', 'Deal terms saved. Buyer can now review and pay.');
     }
 
+    public function requestShipmentProcess(Request $request, ExchangeRequest $exchangeRequest): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        // Buyer (sender) only.
+        abort_unless($user->id === $exchangeRequest->sender_id, 403);
+
+        if (! in_array($exchangeRequest->status, ['Accepted', 'In Progress'], true)) {
+            return back()->with('error', 'Shipment process can be requested only after acceptance.');
+        }
+
+        if ($exchangeRequest->shipment_approved_at) {
+            return back()->with('success', 'Shipment process already approved by seller.');
+        }
+
+        if (! $exchangeRequest->shipment_requested_at) {
+            $exchangeRequest->update([
+                'shipment_requested_at' => now(),
+                'shipment_requested_by' => $user->id,
+            ]);
+
+            Message::query()->create([
+                'exchange_request_id' => $exchangeRequest->id,
+                'sender_id' => $user->id,
+                'body' => 'Buyer requested to proceed with shipment process. Seller approval pending.',
+            ]);
+        }
+
+        return back()->with('success', 'Shipment process request sent to seller.');
+    }
+
+    public function approveShipmentProcess(Request $request, ExchangeRequest $exchangeRequest): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        // Seller (receiver) only.
+        abort_unless($user->id === $exchangeRequest->receiver_id, 403);
+
+        if (! in_array($exchangeRequest->status, ['Accepted', 'In Progress'], true)) {
+            return back()->with('error', 'Shipment process can be approved only for accepted exchanges.');
+        }
+
+        if (! $exchangeRequest->shipment_requested_at) {
+            return back()->with('error', 'Buyer has not requested shipment process yet.');
+        }
+
+        if (! $exchangeRequest->shipment_approved_at) {
+            $exchangeRequest->update([
+                'shipment_approved_at' => now(),
+                'shipment_approved_by' => $user->id,
+            ]);
+
+            Message::query()->create([
+                'exchange_request_id' => $exchangeRequest->id,
+                'sender_id' => $user->id,
+                'body' => 'Seller approved shipment process. Deal terms are now unlocked.',
+            ]);
+        }
+
+        return back()->with('success', 'Shipment process approved. You can now set deal terms.');
+    }
+
     public function updateStatus(Request $request, ExchangeRequest $exchangeRequest, ShippingService $shippingService)
     {
         abort_unless($request->user()->id === $exchangeRequest->receiver_id, 403);
@@ -243,6 +314,10 @@ class ExchangeRequestController extends Controller
             $exchangeRequest->update([
                 'sender_confirmed_at' => null,
                 'receiver_confirmed_at' => null,
+                'shipment_requested_at' => null,
+                'shipment_requested_by' => null,
+                'shipment_approved_at' => null,
+                'shipment_approved_by' => null,
             ]);
         }
 
@@ -318,6 +393,10 @@ class ExchangeRequestController extends Controller
             'receiver_id' => $seller->id,
             'item_id' => $item->id,
             'status' => 'In Progress',
+            'shipment_requested_at' => now()->subMinutes(5),
+            'shipment_requested_by' => $buyer->id,
+            'shipment_approved_at' => now()->subMinutes(4),
+            'shipment_approved_by' => $seller->id,
         ]);
 
         Message::query()->create([
