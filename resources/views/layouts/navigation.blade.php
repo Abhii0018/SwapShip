@@ -37,10 +37,10 @@
                 </button>
                 <a href="{{ route('profile.edit') }}" class="nv-profile-link" aria-label="Open profile page">
                     <span class="nv-profile-avatar">
-                        @if (auth()->user()->profilePhotoUrl())
-                            <img src="{{ auth()->user()->profilePhotoUrl() }}" alt="{{ auth()->user()->name }}">
+                        @if (optional(auth()->user())->profilePhotoUrl())
+                            <img src="{{ optional(auth()->user())->profilePhotoUrl() }}" alt="{{ optional(auth()->user())->name }}">
                         @else
-                            <span>{{ auth()->user()->initials() }}</span>
+                            <span>{{ optional(auth()->user())->initials() }}</span>
                         @endif
                     </span>
                 </a>
