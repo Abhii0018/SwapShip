@@ -2508,9 +2508,17 @@ input, select, textarea {
     animation: nvReveal .5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sell-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, .9fr);
+    gap: 18px;
+    align-items: start;
     background:
         radial-gradient(circle at 15% 8%, rgba(191,255,0,.12), transparent 36%),
         linear-gradient(160deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+}
+.sell-header-copy {
+    display: grid;
+    gap: 14px;
 }
 .sell-eyebrow {
     margin: 0 0 10px;
@@ -2566,6 +2574,72 @@ input, select, textarea {
     background: linear-gradient(90deg, rgba(191,255,0,.95), rgba(191,255,0,0));
     animation: sellUnderlinePulse 2.6s ease-in-out infinite;
 }
+.sell-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.sell-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.03);
+    color: rgba(255,255,255,.84);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.sell-header-aside {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,.12);
+    background:
+        radial-gradient(circle at top, rgba(191,255,0,.11), transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+}
+.sell-aside-label,
+.sell-section-eyebrow {
+    margin: 0;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(191,255,0,.8);
+}
+.sell-aside-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+}
+.sell-aside-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+}
+.sell-checklist {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 8px;
+    color: rgba(255,255,255,.78);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.sell-aside-footnote {
+    margin: 0;
+    color: rgba(255,255,255,.6);
+    font-size: 12px;
+    line-height: 1.45;
+}
 .sell-errors h3 {
     margin: 0 0 10px;
 }
@@ -2578,11 +2652,47 @@ input, select, textarea {
     display: grid;
     gap: 14px;
 }
-.sell-card h2 {
-    margin: 0 0 12px;
+.sell-section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 14px;
+}
+.sell-section-head h2 {
+    margin: 0;
     font-size: 1.08rem;
     letter-spacing: .04em;
     text-transform: uppercase;
+}
+.sell-section-copy {
+    margin: 0;
+    max-width: 42ch;
+    color: rgba(255,255,255,.7);
+    font-size: 13px;
+    line-height: 1.45;
+}
+.sell-callout {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(191,255,0,.18);
+    background: rgba(191,255,0,.05);
+}
+.sell-callout-label {
+    margin: 0;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(191,255,0,.8);
+}
+.sell-callout-text {
+    margin: 0;
+    color: rgba(255,255,255,.78);
+    line-height: 1.55;
+    font-size: 14px;
 }
 .sell-grid {
     display: grid;
@@ -3283,6 +3393,25 @@ input:focus, select:focus, textarea:focus {
         gap: 10px;
         padding-bottom: 96px;
     }
+    .sell-header {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .sell-header-copy {
+        gap: 12px;
+    }
+    .sell-chip-list {
+        gap: 8px;
+    }
+    .sell-chip {
+        padding: 7px 10px;
+        font-size: 10px;
+        letter-spacing: .12em;
+    }
+    .sell-header-aside {
+        padding: 12px;
+        border-radius: 14px;
+    }
     .item-detail-shell {
         grid-template-columns: 1fr;
         max-width: 100%;
@@ -3341,6 +3470,16 @@ input:focus, select:focus, textarea:focus {
     }
     .sell-subtitle::after {
         width: 58px;
+    }
+    .sell-section-head {
+        flex-direction: column;
+        align-items: start;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .sell-section-copy {
+        max-width: none;
+        font-size: 12px;
     }
     .sell-mobile-progress {
         position: sticky;

@@ -10,11 +10,30 @@
         x-init="init()"
     >
         <div class="sell-header card">
-            <div>
+            <div class="sell-header-copy">
                 <p class="sell-eyebrow">Post Item</p>
-                <h1 class="sell-title">Create your listing</h1>
-                <p class="sell-subtitle">Fast. Clear. Ready to publish.</p>
+                <h1 class="sell-title">Create a listing that feels premium from the first glance.</h1>
+                <p class="sell-subtitle">Write with clarity, add sharp photos, and pin the right location so buyers can trust the post instantly.</p>
+
+                <div class="sell-chip-list" aria-label="Listing tips">
+                    <span class="sell-chip">Lead with brand and model</span>
+                    <span class="sell-chip">Keep the title specific</span>
+                    <span class="sell-chip">Use 2 to 3 strong images</span>
+                </div>
             </div>
+
+            <aside class="sell-header-aside">
+                <p class="sell-aside-label">Quick checklist</p>
+                <div class="sell-aside-card">
+                    <p class="sell-aside-title">Before you publish</p>
+                    <ul class="sell-checklist">
+                        <li>Name the item exactly as buyers would search for it.</li>
+                        <li>Add clear photos with the best shot first.</li>
+                        <li>Choose a precise location for better local discovery.</li>
+                    </ul>
+                </div>
+                <p class="sell-aside-footnote">Clear, concise, and professional wins the click.</p>
+            </aside>
         </div>
         <nav class="sell-mobile-progress" aria-label="Listing steps">
             <a href="#sell-product">Product</a>
@@ -37,11 +56,17 @@
         <form method="POST" action="{{ route('items.store') }}" enctype="multipart/form-data" class="sell-form">
             @csrf
             <section class="card sell-card" id="sell-product">
-                <h2>Product information</h2>
+                <div class="sell-section-head">
+                    <div>
+                        <p class="sell-section-eyebrow">Step 1</p>
+                        <h2>Product information</h2>
+                    </div>
+                    <p class="sell-section-copy">Use a sharp title and the right category so your listing feels credible at a glance.</p>
+                </div>
                 <div class="sell-grid">
                     <div class="sell-field">
                         <label for="title">Ad title</label>
-                        <input id="title" name="title" x-model="form.title" @blur="normalizeTitle()" required placeholder="e.g. iPhone 14 Pro 128GB, excellent condition">
+                        <input id="title" name="title" x-model="form.title" @blur="normalizeTitle()" required placeholder="Sony WH-1000XM5, barely used, boxed">
                         <small class="muted" x-show="titleHint" x-text="titleHint"></small>
                     </div>
 
@@ -75,7 +100,10 @@
                         <small class="muted">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
                     </div>
 
-                    <div class="sell-field"></div>
+                    <div class="sell-field sell-field-full sell-callout">
+                        <p class="sell-callout-label">Pro tip</p>
+                        <p class="sell-callout-text">Specific titles perform better than broad ones. Include the brand, model, and one honest condition detail.</p>
+                    </div>
 
                     <div class="sell-field">
                         <label for="condition">Condition</label>
@@ -94,57 +122,62 @@
             </section>
 
             <section class="card sell-card" id="sell-setup">
-                <h2>Listing setup</h2>
-                <div class="sell-field">
-                        <label for="price">Price (INR)</label>
-                        <input id="price" name="price" x-model="form.price" type="number" min="0" step="0.01" placeholder="Set your selling price (e.g. 14999)">
+                <div class="sell-section-head">
+                    <div>
+                        <p class="sell-section-eyebrow">Step 2</p>
+                        <h2>Listing setup</h2>
                     </div>
+                    <p class="sell-section-copy">Price and location matter. Keep them realistic and easy to understand.</p>
+                </div>
+                <div class="sell-field">
+                    <label for="price">Price (INR)</label>
+                    <input id="price" name="price" x-model="form.price" type="number" min="0" step="0.01" placeholder="e.g. 14,999">
+                </div>
 
-                    <div class="sell-field sell-autocomplete" @click.outside="closeSuggestions('location')">
-                        <label for="location">Location</label>
-                        <div class="sell-location-mode">
-                            <button
-                                type="button"
-                                class="sell-location-chip"
-                                :class="{ 'is-active': locationMode === 'manual' }"
-                                @click="setLocationMode('manual')"
-                            >
-                                Enter manually
-                            </button>
-                            <button
-                                type="button"
-                                class="sell-location-chip"
-                                :class="{ 'is-active': locationMode === 'current' }"
-                                @click="setLocationMode('current')"
-                            >
-                                Use current location
-                            </button>
-                        </div>
-                        <input
-                            id="location"
-                            name="location"
-                            x-model="form.location"
-                            @focus="openSuggestions('location')"
-                            @input.debounce.250ms="fetchSuggestions('location')"
-                            placeholder="Search locality, city, area (New Delhi, Old Delhi...)"
-                            autocomplete="off"
-                            required
+                <div class="sell-field sell-autocomplete" @click.outside="closeSuggestions('location')">
+                    <label for="location">Location</label>
+                    <div class="sell-location-mode">
+                        <button
+                            type="button"
+                            class="sell-location-chip"
+                            :class="{ 'is-active': locationMode === 'manual' }"
+                            @click="setLocationMode('manual')"
                         >
-                        <small class="muted">You can type location manually or tap "Use current location".</small>
-                        <input type="hidden" name="location_lat" :value="form.location_lat">
-                        <input type="hidden" name="location_lng" :value="form.location_lng">
-                        <div class="sell-suggestions" x-show="isOpen('location')" x-transition.opacity.duration.120ms>
-                            <template x-for="option in locationSuggestions" :key="'loc-' + option">
-                                <button type="button" @click="pickSuggestion('location', option)" x-text="option"></button>
-                            </template>
-                            <p x-show="!locationSuggestions.length">Start typing to search locations</p>
-                        </div>
+                            Enter manually
+                        </button>
+                        <button
+                            type="button"
+                            class="sell-location-chip"
+                            :class="{ 'is-active': locationMode === 'current' }"
+                            @click="setLocationMode('current')"
+                        >
+                            Use current location
+                        </button>
+                    </div>
+                    <input
+                        id="location"
+                        name="location"
+                        x-model="form.location"
+                        @focus="openSuggestions('location')"
+                        @input.debounce.250ms="fetchSuggestions('location')"
+                        placeholder="e.g. Indiranagar, Bengaluru"
+                        autocomplete="off"
+                        required
+                    >
+                    <small class="muted">Type the area manually or let the app use your current location.</small>
+                    <input type="hidden" name="location_lat" :value="form.location_lat">
+                    <input type="hidden" name="location_lng" :value="form.location_lng">
+                    <div class="sell-suggestions" x-show="isOpen('location')" x-transition.opacity.duration.120ms>
+                        <template x-for="option in locationSuggestions" :key="'loc-' + option">
+                            <button type="button" @click="pickSuggestion('location', option)" x-text="option"></button>
+                        </template>
+                        <p x-show="!locationSuggestions.length">Start typing to search locations</p>
                     </div>
                 </div>
 
                 <div class="sell-map-wrap">
                     <div class="sell-map-head">
-                        <p>Tap map to set exact area</p>
+                        <p>Tap the map to pin the exact area</p>
                         <button type="button" class="btn" @click="detectCurrentLocation()">Use my current location</button>
                     </div>
                     <div id="sell-location-map" class="sell-map"></div>
@@ -163,7 +196,13 @@
             </section>
 
             <section class="card sell-card" id="sell-media">
-                <h2>Photos and description</h2>
+                <div class="sell-section-head">
+                    <div>
+                        <p class="sell-section-eyebrow">Step 3</p>
+                        <h2>Photos and description</h2>
+                    </div>
+                    <p class="sell-section-copy">Clean photos and an honest description make the listing feel polished and trustworthy.</p>
+                </div>
                 <div class="sell-field">
                     <label for="images">Item photos</label>
                     <div
@@ -172,8 +211,8 @@
                         @drop.prevent="handleDrop($event)"
                         @click="$refs.imageInput.click()"
                     >
-                        <p>Drag and drop images or click to browse</p>
-                        <small>First image becomes the cover photo. Drag thumbnails to reorder.</small>
+                        <p>Drop sharp photos here or click to browse</p>
+                        <small>Use the strongest image first. Drag thumbnails to reorder the gallery.</small>
                     </div>
                     <input x-ref="imageInput" id="images" name="images[]" type="file" multiple accept="image/*" @change="previewImages($event)" class="sell-file-hidden">
                     <small class="muted">Upload 1 to 3 images. First image becomes cover.</small>
@@ -206,11 +245,11 @@
                 <div class="sell-grid">
                     <div class="sell-field sell-field-full">
                         <label for="description">Description</label>
-                        <textarea id="description" name="description" x-model="form.description" rows="5" placeholder="Mention brand, model, age, usage, any defects, and what is included."></textarea>
+                        <textarea id="description" name="description" x-model="form.description" rows="5" placeholder="Share the brand, model, usage, condition, accessories, and any small flaws buyers should know."></textarea>
                     </div>
                     <div class="sell-field sell-field-full">
                         <label for="notes">Additional notes</label>
-                        <textarea id="notes" name="notes" x-model="form.notes" rows="3" placeholder="Pickup timings, negotiable price, preferred exchange terms, etc."></textarea>
+                        <textarea id="notes" name="notes" x-model="form.notes" rows="3" placeholder="Add pickup timing, negotiation room, exchange preferences, or anything useful for the buyer."></textarea>
                     </div>
                 </div>
             </section>
