@@ -59,21 +59,20 @@
                         </select>
                     </div>
 
-                    <div class="sell-field sell-field-full" x-show="selectedParent" x-transition>
+                    <div class="sell-field sell-field-full" x-show="selectedParent" x-transition x-cloak>
                         <label for="category">Subcategory</label>
                         <select
                             id="category"
                             name="category"
                             x-model="form.category"
                             @change="form.category = $event.target.value"
-                            :required="selectedParent !== ''"
                         >
                             <option value="">Select subcategory</option>
                             <template x-for="sub in subcategories" :key="sub">
                                 <option :value="sub" x-text="sub"></option>
                             </template>
                         </select>
-                        <small class="muted" x-show="selectedParent">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
+                        <small class="muted">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
                     </div>
 
                     <div class="sell-field"></div>
