@@ -53,9 +53,9 @@
                             @change="updateSubcategories(); form.category = ''"
                         >
                             <option value="">Select category</option>
-                            <template x-for="parent in Object.keys(parentCategories)" :key="parent">
-                                <option :value="parent" x-text="parent"></option>
-                            </template>
+                            @foreach($parentCategories as $parent => $subs)
+                                <option value="{{ $parent }}">{{ $parent }}</option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -66,14 +66,14 @@
                             name="category"
                             x-model="form.category"
                             @change="form.category = $event.target.value"
-                            required
+                            :required="selectedParent !== ''"
                         >
                             <option value="">Select subcategory</option>
                             <template x-for="sub in subcategories" :key="sub">
                                 <option :value="sub" x-text="sub"></option>
                             </template>
                         </select>
-                        <small class="muted">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
+                        <small class="muted" x-show="selectedParent">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
                     </div>
 
                     <div class="sell-field"></div>
