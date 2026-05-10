@@ -1,7 +1,7 @@
 @php
     $hasInfoErrors = $errors->getBag('default')->isNotEmpty();
     $justSaved = session('status') === 'profile-updated';
-    $profileComplete = auth()->user()->hasCompletedProfile();
+    $profileComplete = optional(auth()->user())->hasCompletedProfile();
     $shouldOpen = $hasInfoErrors || (! $justSaved && ! $profileComplete);
 @endphp
 

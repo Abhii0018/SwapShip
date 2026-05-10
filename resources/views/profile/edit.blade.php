@@ -6,7 +6,7 @@
             <div class="profile-hero-top">
                 <div class="profile-hero-headline">
                     <p class="profile-eyebrow">Account setup</p>
-                    <h1>Hello, {{ auth()->user()->firstName() }}</h1>
+                    <h1>Hello, {{ optional(auth()->user())->firstName() }}</h1>
                     <p class="profile-hero-subtitle">Finish your identity details once to unlock posting items and sending purchase requests.</p>
                 </div>
                 <form method="POST" action="{{ route('logout') }}" class="profile-logout-form">
@@ -17,10 +17,10 @@
             <div class="profile-hero-progress">
                 <div class="profile-hero-progress-top">
                     <span>Completion</span>
-                    <strong>{{ auth()->user()->profileCompletionPercent() }}%</strong>
+                    <strong>{{ optional(auth()->user())->profileCompletionPercent() }}%</strong>
                 </div>
                 <div class="profile-hero-progress-bar">
-                    <i style="width: {{ auth()->user()->profileCompletionPercent() }}%"></i>
+                    <i style="width: {{ optional(auth()->user())->profileCompletionPercent() }}%"></i>
                 </div>
             </div>
             <div class="profile-hero-tags">
