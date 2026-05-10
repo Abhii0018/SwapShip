@@ -16,7 +16,6 @@ class EmailVerificationOtpMail extends Mailable implements ShouldQueue
 
     public $tries = 3;
     public $backoff = 10;
-    public $afterCommit = true;
 
     public function __construct(
         public User $user,
