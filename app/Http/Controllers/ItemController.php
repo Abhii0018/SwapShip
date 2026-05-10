@@ -188,7 +188,7 @@ class ItemController extends Controller
         $conditions = ['new', 'like new', 'used'];
         $parentCategories = self::CATEGORIES;
 
-        return view('items.create', compact('categories', 'conditions', 'parentCategories'));
+        return view('items.create', compact('conditions', 'parentCategories'));
     }
 
     public function suggestLocations(Request $request): JsonResponse
