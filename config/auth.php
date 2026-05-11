@@ -125,10 +125,10 @@ return [
     | polling), so users can effectively stay logged in indefinitely. This
     | absolute lifetime forces a re-login after the configured duration.
     |
-    | 720 minutes = 12 hours.
+    | 10080 minutes = 7 days.
     |
     */
 
-    'absolute_session_lifetime' => (int) env('ABSOLUTE_SESSION_LIFETIME', 180),
+    'absolute_session_lifetime' => (int) env('ABSOLUTE_SESSION_LIFETIME', 10080),
 
 ];

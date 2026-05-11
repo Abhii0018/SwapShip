@@ -35,7 +35,7 @@
                     </svg>
                     <span class="nv-bell-dot {{ ($navNotificationCount ?? 0) > 0 ? '' : 'is-hidden' }}" aria-hidden="true"></span>
                 </button>
-                <a href="{{ route('profile.edit') }}" class="nv-profile-link" aria-label="Open profile page" data-nav-profile data-debug-url="{{ route('profile.edit') }}" onclick="event.preventDefault(); window.location.href='{{ route('profile.edit') }}';">
+                <a href="{{ route('profile.edit') }}" class="nv-profile-link" aria-label="Open profile page" data-nav-profile>
                     <span class="nv-profile-avatar">
                         @if (optional(auth()->user())->profilePhotoUrl())
                             <img src="{{ optional(auth()->user())->profilePhotoUrl() }}" alt="{{ optional(auth()->user())->name }}">
@@ -147,12 +147,21 @@
 
         const refreshNotifications = () => {
             fetch(@json(route('notifications.summary')), {
+                credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
             })
-            .then((res) => res.ok ? res.json() : null)
+            .then((res) => {
+                // If the server redirected to login (session expired) the
+                // response will be HTML/text, not JSON – silently bail out
+                // so we never accidentally navigate away or poison the log.
+                if (!res.ok) return null;
+                const ct = res.headers.get('Content-Type') || '';
+                if (!ct.includes('application/json')) return null;
+                return res.json();
+            })
             .then((data) => {
                 if (!data) return;
                 setDotVisible(Number(data.count || 0) > 0);
@@ -164,12 +173,7 @@
         refreshNotifications();
         setInterval(refreshNotifications, 30000);
 
-        // Debug: log profile link clicks
-        document.querySelectorAll('[data-nav-profile]').forEach((el) => {
-            el.addEventListener('click', (e) => {
-                console.log('Profile link clicked, href:', el.href, 'target:', el.getAttribute('target'));
-            });
-        });
+
     })();
 </script>
 @endauth
