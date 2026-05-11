@@ -17,7 +17,6 @@
             <button type="button" :class="{ 'is-active': activeTab === 'requests' }" @click="activeTab = 'requests'">Requests</button>
             <button type="button" :class="{ 'is-active': activeTab === 'active' }" @click="activeTab = 'active'">Active</button>
             <button type="button" :class="{ 'is-active': activeTab === 'more' }" @click="activeTab = 'more'">More</button>
-            <button type="button" :class="{ 'is-active': activeTab === 'actions' }" @click="activeTab = 'actions'">Actions</button>
         </nav>
         <section class="dash-summary" x-show="showSection('listings')">
             <article class="card dash-stat">
@@ -231,29 +230,7 @@
             </section>
         </section>
 
-        <section class="card dash-block" id="dash-actions" x-show="showSection('actions')">
-            <div class="dash-head">
-                <p class="dash-kicker">Tools</p>
-                <h2>Quick Actions</h2>
-            </div>
-            <div class="dash-cta-grid">
-                <a class="btn btn-primary" href="{{ route('items.create') }}">Add Item</a>
-                <a class="btn dash-cta-emphasis" href="{{ route('items.index') }}">Explore Items</a>
-                <a class="btn dash-cta-emphasis" href="{{ route('exchanges.index') }}">View Exchanges</a>
-            </div>
-            <div class="dash-actions">
-                <a class="btn" href="{{ route('chat.index') }}">Open Chat</a>
-                @auth
-                    <a class="btn" href="{{ route('shipments.index') }}">Track Shipment</a>
-                @else
-                    <span class="muted">Login to track shipment</span>
-                @endauth
-                <form method="POST" action="{{ route('demo.generate-exchange-data') }}">
-                    @csrf
-                    <button class="btn" type="submit">Generate Demo Exchange Data</button>
-                </form>
-            </div>
-        </section>
+
     </section>
 </x-app-layout>
 
