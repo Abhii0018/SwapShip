@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/payments/orders/{order}/init-razorpay', [PaymentController::class, 'initRazorpay'])->name('payments.init-razorpay');
     Route::post('/payments/orders/{order}/pay', [PaymentController::class, 'pay'])->name('payments.pay');
 
+});
+
+Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
