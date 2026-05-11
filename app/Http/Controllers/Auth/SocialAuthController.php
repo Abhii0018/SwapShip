@@ -29,8 +29,12 @@ class SocialAuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Google OAuth callback error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return redirect()->route('login')->withErrors([
-                'email' => 'Google authentication failed. Please try again.',
+                'email' => 'Google authentication failed: ' . $e->getMessage() . '. Please try again.',
             ]);
         }
 
@@ -73,21 +77,20 @@ class SocialAuthController extends Controller
                 ->with('status', 'Welcome! Complete OTP verification to activate your account.');
         }
 
-        // Existing user
-        $needsOtp = false;
+        // Existing user — login directly (OTP only required for new registrations)
         if (! $user->google_id) {
             $user->google_id = $googleUser->id;
-            $user->save();
         }
 
-        if (! $user->is_verified) {
-            // Existing user not verified — redirect to OTP
-            $request->session()->put('pending_otp_user_id', $user->id);
-            $record = \App\Models\EmailVerificationOtp::query()->firstOrNew(['user_id' => $user->id]);
-            EmailOtpVerificationController::issueOtp($user, $record);
-            return redirect()->route('otp.verify.notice')
-                ->with('status', 'Please verify your account before continuing.');
+        // Mark as verified since Google OAuth already verified the email
+        if (! $user->email_verified_at) {
+            $user->email_verified_at = now();
         }
+        if (! $user->is_verified) {
+            $user->is_verified = true;
+        }
+        
+        $user->save();
 
         Auth::login($user, true);
         $request->session()->regenerate();
