@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AbsoluteSessionTimeout;
+use App\Http\Middleware\EnsureUserIsVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -30,6 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             AbsoluteSessionTimeout::class,
+        ]);
+
+        $middleware->alias([
+            'verified' => EnsureUserIsVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

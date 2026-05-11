@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -22,7 +24,7 @@ class SocialAuthController extends Controller
         return Socialite::driver('google')->redirect();
     }
 
-    public function handleGoogleCallback(): RedirectResponse
+    public function handleGoogleCallback(Request $request): RedirectResponse
     {
         try {
             $googleUser = Socialite::driver('google')->user();
@@ -38,25 +40,58 @@ class SocialAuthController extends Controller
             ->first();
 
         if (! $user) {
-            $user = User::query()->create([
+            // New OAuth user — store pending registration and require OTP verification
+            $otp = (string) random_int(100000, 999999);
+
+            $request->session()->forget('pending_otp_user_id', 'pending_registration');
+            $request->session()->put('pending_registration', [
                 'name' => $googleUser->name ?: 'Google User',
-                'email' => $googleUser->email,
+                'email' => mb_strtolower(trim((string) $googleUser->email)),
+                'password' => Hash::make(Str::password(24)),
                 'google_id' => $googleUser->id,
                 'role' => 'user',
-                'password' => Str::password(24),
-                'email_verified_at' => now(),
+                'pending_expires_at' => now()->addMinutes(10)->toIso8601String(),
+                'otp_hash' => Hash::make($otp),
+                'otp_attempts' => 0,
+                'otp_expires_at' => now()->addMinutes(10)->toIso8601String(),
+                'otp_last_sent_at' => now()->toIso8601String(),
+                'oauth_pending' => true,
             ]);
-        } elseif (! $user->google_id) {
-            $user->google_id = $googleUser->id;
-            if (! $user->email_verified_at) {
-                $user->email_verified_at = now();
+
+            try {
+                $tempUser = new User([
+                    'name' => $googleUser->name ?: 'Google User',
+                    'email' => $googleUser->email,
+                ]);
+                \Illuminate\Support\Facades\Mail::to($googleUser->email)
+                    ->queue(new \App\Mail\EmailVerificationOtpMail($tempUser, $otp));
+            } catch (\Throwable $exception) {
+                report($exception);
             }
+
+            return redirect()->route('otp.verify.notice')
+                ->with('status', 'Welcome! Complete OTP verification to activate your account.');
+        }
+
+        // Existing user
+        $needsOtp = false;
+        if (! $user->google_id) {
+            $user->google_id = $googleUser->id;
             $user->save();
         }
 
+        if (! $user->is_verified) {
+            // Existing user not verified — redirect to OTP
+            $request->session()->put('pending_otp_user_id', $user->id);
+            $record = \App\Models\EmailVerificationOtp::query()->firstOrNew(['user_id' => $user->id]);
+            EmailOtpVerificationController::issueOtp($user, $record);
+            return redirect()->route('otp.verify.notice')
+                ->with('status', 'Please verify your account before continuing.');
+        }
+
         Auth::login($user, true);
-        request()->session()->regenerate();
-        request()->session()->put('auth_logged_in_at', now()->getTimestamp());
+        $request->session()->regenerate();
+        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
         return redirect()->intended(route('home'));
     }

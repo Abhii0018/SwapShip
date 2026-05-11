@@ -47,7 +47,13 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'password' => 'hashed',
+            'is_verified' => 'boolean',
         ];
+    }
+
+    public function isVerified(): bool
+    {
+        return (bool) $this->is_verified;
     }
 
     public function isAdmin(): bool

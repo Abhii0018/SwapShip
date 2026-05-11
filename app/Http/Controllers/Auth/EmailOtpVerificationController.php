@@ -23,9 +23,9 @@ class EmailOtpVerificationController extends Controller
     {
         $user = $this->pendingUser($request);
         if ($user) {
-            if ($user->hasVerifiedEmail()) {
+            if ($user->hasVerifiedEmail() && $user->is_verified) {
                 $request->session()->forget('pending_otp_user_id');
-                return redirect()->route('login')->with('status', 'Email already verified. Please login.');
+                return redirect()->route('login')->with('status', 'Account already verified. Please login.');
             }
 
             $record = EmailVerificationOtp::query()->where('user_id', $user->id)->first();
@@ -76,7 +76,7 @@ class EmailOtpVerificationController extends Controller
             return back()->withErrors(['otp' => 'Invalid OTP.']);
         }
 
-        $user->forceFill(['email_verified_at' => now()])->save();
+        $user->forceFill(['email_verified_at' => now(), 'is_verified' => true])->save();
         $record->delete();
         $request->session()->forget('pending_otp_user_id');
 
@@ -210,9 +210,11 @@ class EmailOtpVerificationController extends Controller
             'name' => (string) ($pendingRegistration['name'] ?? ''),
             'email' => (string) ($pendingRegistration['email'] ?? ''),
             'password' => (string) ($pendingRegistration['password'] ?? ''),
+            'google_id' => $pendingRegistration['google_id'] ?? null,
             'phone' => $pendingRegistration['phone'] ?? null,
             'role' => (string) ($pendingRegistration['role'] ?? 'user'),
             'email_verified_at' => now(),
+            'is_verified' => true,
         ]);
 
         $request->session()->forget('pending_registration');

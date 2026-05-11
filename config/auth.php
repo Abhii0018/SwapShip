@@ -129,6 +129,6 @@ return [
     |
     */
 
-    'absolute_session_lifetime' => (int) env('ABSOLUTE_SESSION_LIFETIME', 720),
+    'absolute_session_lifetime' => (int) env('ABSOLUTE_SESSION_LIFETIME', 180),
 
 ];

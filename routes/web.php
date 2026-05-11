@@ -53,7 +53,7 @@ Route::post('/webhooks/shipping/{provider}', ShipmentWebhookController::class)->
 Route::post('/webhooks/payments/razorpay', [PaymentController::class, 'webhookRazorpay'])->name('webhooks.payments.razorpay');
 Route::match(['get', 'post'], '/payments/orders/{order}/razorpay/callback', [PaymentController::class, 'razorpayCallback'])->name('payments.razorpay-callback');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::patch('/exchanges/{exchangeRequest}/status', [ExchangeRequestController::class, 'updateStatus'])->name('exchanges.update-status');
     Route::patch('/exchanges/{exchangeRequest}/confirm', [ExchangeRequestController::class, 'confirm'])->name('exchanges.confirm');
