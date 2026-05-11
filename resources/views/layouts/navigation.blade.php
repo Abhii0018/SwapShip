@@ -84,6 +84,7 @@
         <a href="{{ route('chat.index') }}" @if(request()->routeIs('chat.*')) aria-current="page" @endif>CHAT</a>
         <a href="{{ route('exchanges.index') }}" @if(request()->routeIs('exchanges.*')) aria-current="page" @endif>EXCHANGE</a>
         <a href="{{ route('items.create') }}" @if(request()->routeIs('items.create')) aria-current="page" @endif>ADD</a>
+        <a href="{{ route('profile.edit') }}" @if(request()->routeIs('profile.*')) aria-current="page" @endif>PROFILE</a>
     @endguest
 </nav>
 
