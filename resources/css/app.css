@@ -3889,58 +3889,414 @@ input:focus, select:focus, textarea:focus {
     padding-inline: 16px;
 }
 
+.shipment-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: linear-gradient(180deg, rgba(5,5,5,.95), rgba(5,5,5,.85));
+    backdrop-filter: blur(8px);
+    padding: 14px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(191,255,0,.16);
+}
+
+.shipment-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(191,255,0,.3);
+    background: linear-gradient(135deg, rgba(191,255,0,.12), rgba(191,255,0,.05));
+    color: #d8ff67;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    transition: all .28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shipment-back-btn:hover {
+    border-color: rgba(191,255,0,.6);
+    background: rgba(191,255,0,.15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(191,255,0,.15);
+}
+
 .deal-shell {
     max-width: 1060px;
     margin: 0 auto;
+    padding: 0 20px 40px;
 }
+
+.card.shipment-shell {
+    border-radius: 18px;
+    background: linear-gradient(160deg, rgba(20,20,20,.95), rgba(15,15,15,.92));
+    border: 1px solid rgba(191,255,0,.2);
+    padding: 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.3);
+    animation: dealIn .5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .deal-head {
-    align-items: end;
+    align-items: start;
+    display: grid;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px dashed rgba(191,255,0,.18);
 }
+
+.deal-head div {
+    display: grid;
+    gap: 10px;
+}
+
+.deal-head h2 {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    letter-spacing: -0.03em;
+    color: #fff;
+    text-shadow: 0 6px 16px rgba(0,0,0,.3);
+}
+
+.shipment-kicker {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(191,255,0,.9);
+    text-shadow: 0 0 10px rgba(191,255,0,.2);
+}
+
+.shipment-status {
+    align-self: flex-start;
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(191,255,0,.4);
+    background: linear-gradient(135deg, rgba(191,255,0,.15), rgba(191,255,0,.08));
+    color: #d8ff67;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    box-shadow: 0 0 16px rgba(191,255,0,.18);
+}
+
 .deal-subtitle {
-    margin: 10px 0 0;
-    color: rgba(255,255,255,.72);
+    margin: 12px 0 0;
+    color: rgba(255,255,255,.75);
     max-width: 64ch;
-    line-height: 1.55;
+    line-height: 1.6;
+    font-size: 15px;
 }
+
 .deal-flow-strip {
-    margin-top: 12px;
+    margin-top: 16px;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 12px;
 }
+
 .deal-flow-step {
     border: 1px solid rgba(255,255,255,.12);
-    border-radius: 12px;
-    padding: 10px;
-    background: rgba(255,255,255,.02);
+    border-radius: 14px;
+    padding: 16px;
+    background: linear-gradient(145deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
     display: grid;
-    gap: 6px;
+    gap: 8px;
+    transition: all .35s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.deal-flow-step:hover {
+    transform: translateY(-3px);
+    border-color: rgba(191,255,0,.3);
+    box-shadow: 0 10px 28px rgba(191,255,0,.1);
+}
+
 .deal-flow-step strong {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 999px;
     display: grid;
     place-items: center;
-    font-size: 12px;
+    font-size: 13px;
     border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.05);
+    color: rgba(255,255,255,.8);
 }
+
 .deal-flow-step span {
     font-size: 12px;
-    color: rgba(255,255,255,.75);
+    color: rgba(255,255,255,.72);
+    line-height: 1.4;
 }
+
 .deal-flow-step.is-active {
-    border-color: rgba(248,191,67,.45);
-    background: rgba(248,191,67,.08);
+    border-color: rgba(248,191,67,.5);
+    background: linear-gradient(145deg, rgba(248,191,67,.15), rgba(248,191,67,.08));
+    box-shadow: 0 0 20px rgba(248,191,67,.15);
 }
+
+.deal-flow-step.is-active strong {
+    background: rgba(248,191,67,.3);
+    border-color: rgba(248,191,67,.6);
+    color: #f8bf43;
+}
+
 .deal-flow-step.is-done {
-    border-color: rgba(191,255,0,.36);
-    background: rgba(191,255,0,.1);
+    border-color: rgba(191,255,0,.4);
+    background: linear-gradient(145deg, rgba(191,255,0,.12), rgba(191,255,0,.06));
 }
+
+.deal-flow-step.is-done strong {
+    background: rgba(191,255,0,.2);
+    border-color: rgba(191,255,0,.5);
+    color: #d8ff67;
+}
+
+.shipment-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+    margin-bottom: 24px;
+}
+
+.shipment-meta-pill {
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    padding: 16px;
+    background: linear-gradient(145deg, rgba(191,255,0,.08), rgba(255,255,255,.02));
+    display: grid;
+    gap: 8px;
+    transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shipment-meta-pill:hover {
+    border-color: rgba(191,255,0,.35);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(191,255,0,.12);
+}
+
+.shipment-meta-pill span {
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.62);
+    font-family: 'Geist Mono', monospace;
+}
+
+.shipment-meta-pill strong {
+    font-size: 16px;
+    font-weight: 700;
+    color: #d8ff67;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    text-shadow: 0 0 12px rgba(191,255,0,.15);
+}
+
+.deal-section-head {
+    margin-top: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed rgba(191,255,0,.15);
+}
+
 .deal-section-head h3 {
-    margin: 0;
-    font-size: clamp(1.1rem, 2.2vw, 1.42rem);
+    margin: 0 0 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+    letter-spacing: -0.02em;
+    color: #fff;
 }
+
+.deal-section-head p {
+    margin: 0;
+    font-size: 14px;
+    color: rgba(255,255,255,.68);
+    line-height: 1.5;
+}
+
+.shipment-form {
+    display: grid;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.shipment-form-row {
+    display: grid;
+    gap: 8px;
+}
+
+.shipment-form-row label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.72);
+    font-weight: 600;
+}
+
+.shipment-form-row select,
+.shipment-form-row input {
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: linear-gradient(145deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    padding: 12px 14px;
+    color: #fff;
+    font-size: 14px;
+    transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shipment-form-row select:focus,
+.shipment-form-row input:focus {
+    border-color: rgba(191,255,0,.5);
+    background: rgba(255,255,255,.08);
+    box-shadow: 0 0 0 3px rgba(191,255,0,.12);
+    outline: none;
+}
+
+.shipment-form-row small {
+    font-size: 12px;
+    color: rgba(255,255,255,.56);
+    font-style: italic;
+}
+
+.shipment-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    margin-bottom: 18px;
+}
+
+.shipment-breakdown-pill {
+    border-radius: 14px;
+    border: 1px solid rgba(191,255,0,.22);
+    padding: 16px;
+    background: linear-gradient(145deg, rgba(191,255,0,.1), rgba(191,255,0,.04));
+    display: grid;
+    gap: 8px;
+    text-align: center;
+    transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shipment-breakdown-pill:hover {
+    border-color: rgba(191,255,0,.4);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(191,255,0,.12);
+}
+
+.shipment-breakdown-pill span {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.65);
+}
+
+.shipment-breakdown-pill strong {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: #d8ff67;
+    text-shadow: 0 0 12px rgba(191,255,0,.2);
+}
+
+.shipment-breakdown-pill.is-wide {
+    grid-column: 1 / -1;
+    background: linear-gradient(145deg, rgba(191,255,0,.15), rgba(191,255,0,.08));
+    border-color: rgba(191,255,0,.35);
+    padding: 18px;
+}
+
+.shipment-breakdown-pill.is-wide strong {
+    font-size: 19px;
+}
+
+.shipment-form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.shipment-form-actions .btn,
+.shipment-form-actions .btn-primary {
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
+    min-height: 48px;
+    flex: 1;
+    min-width: 140px;
+}
+
+.shipment-form-actions .btn-primary {
+    background: linear-gradient(135deg, #d8ff67, #bfff00);
+    color: #051100;
+    border: none;
+    box-shadow: 0 10px 28px rgba(191,255,0,.28);
+}
+
+.shipment-form-actions .btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 36px rgba(191,255,0,.38);
+}
+
+.shipment-form-actions .btn-primary:active {
+    transform: translateY(-1px) scale(.98);
+}
+
+.shipment-form-actions .btn {
+    background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,.16);
+    color: rgba(255,255,255,.9);
+}
+
+.shipment-form-actions .btn:hover {
+    background: rgba(255,255,255,.12);
+    border-color: rgba(191,255,0,.4);
+    transform: translateY(-2px);
+}
+
+.shipment-state-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.shipment-state-pill {
+    display: inline-flex;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(191,255,0,.3);
+    background: rgba(191,255,0,.1);
+    color: #d8ff67;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+@keyframes dealIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 .deal-form {
     margin-top: 10px;
 }
