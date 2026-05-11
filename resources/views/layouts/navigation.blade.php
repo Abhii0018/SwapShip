@@ -35,7 +35,7 @@
                     </svg>
                     <span class="nv-bell-dot {{ ($navNotificationCount ?? 0) > 0 ? '' : 'is-hidden' }}" aria-hidden="true"></span>
                 </button>
-                <a href="{{ route('profile.edit') }}" class="nv-profile-link" aria-label="Open profile page">
+                <a href="{{ route('profile.edit') }}" class="nv-profile-link" aria-label="Open profile page" data-nav-profile data-debug-url="{{ route('profile.edit') }}" onclick="event.preventDefault(); window.location.href='{{ route('profile.edit') }}';">
                     <span class="nv-profile-avatar">
                         @if (optional(auth()->user())->profilePhotoUrl())
                             <img src="{{ optional(auth()->user())->profilePhotoUrl() }}" alt="{{ optional(auth()->user())->name }}">
@@ -163,6 +163,13 @@
 
         refreshNotifications();
         setInterval(refreshNotifications, 30000);
+
+        // Debug: log profile link clicks
+        document.querySelectorAll('[data-nav-profile]').forEach((el) => {
+            el.addEventListener('click', (e) => {
+                console.log('Profile link clicked, href:', el.href, 'target:', el.getAttribute('target'));
+            });
+        });
     })();
 </script>
 @endauth
