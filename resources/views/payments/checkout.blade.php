@@ -12,6 +12,31 @@
                         <img src="https://razorpay.com/assets/razorpay-logo.svg" alt="Razorpay logo">
                     </div>
                 @endif
+
+                {{-- Payment status badges (clean, prominent) --}}
+                <div class="checkout-status-badges">
+                    @php
+                        $upfrontPaid = !empty($order->upfront_paid_at);
+                        $remainingPaid = !empty($order->remaining_paid_at) || !empty($order->paid_at);
+                    @endphp
+                    <span class="status-badge {{ $upfrontPaid ? 'is-done' : 'is-pending' }}" aria-hidden="true">
+                        @if($upfrontPaid)
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6L9 17l-5-5" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Upfront: Paid
+                        @else
+                            Upfront: Pending
+                        @endif
+                    </span>
+
+                    <span class="status-badge {{ $remainingPaid ? 'is-done' : 'is-pending' }}" aria-hidden="true">
+                        @if($remainingPaid)
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6L9 17l-5-5" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Remaining: {{ $remainingPaid ? 'Paid' : 'Pending' }}
+                        @else
+                            Remaining: Pending
+                        @endif
+                    </span>
+                </div>
             </header>
 
             <section class="checkout-amounts">
@@ -32,11 +57,11 @@
                     <strong>INR {{ number_format((float)$order->total_amount, 2) }}</strong>
                 </div>
                 @if($order->payment_method === 'escrow')
-                    <div class="checkout-row">
+                    <div class="checkout-row {{ !empty($order->upfront_paid_at) ? 'is-paid' : '' }}">
                         <span>Upfront amount</span>
                         <strong>INR {{ number_format((float)($order->upfront_amount ?? $order->total_amount), 2) }}</strong>
                     </div>
-                    <div class="checkout-row">
+                    <div class="checkout-row {{ (!empty($order->remaining_paid_at) || !empty($order->paid_at)) ? 'is-paid' : '' }}">
                         <span>Remaining doorstep amount</span>
                         <strong>INR {{ number_format((float)($order->remaining_amount ?? 0), 2) }}</strong>
                     </div>
@@ -52,7 +77,7 @@
                 <span>For doorstep stage, rider handover is unlocked only after successful final payment.</span>
             </div>
 
-            @if($order->payment_method === 'escrow')
+                @if($order->payment_method === 'escrow')
                 @if(($order->gateway ?? config('payments.default_gateway')) === 'razorpay')
                     @if($stage === 'none')
                         <p class="muted checkout-info">No pending payment for this order. You can return to shipments.</p>
@@ -63,9 +88,8 @@
                             <input type="hidden" name="razorpay_order_id" id="rzp_order_id" value="{{ $gatewayOrderId }}">
                             <input type="hidden" name="razorpay_signature" id="rzp_signature">
                             <input type="hidden" name="razorpay_direct_mode" id="rzp_direct_mode" value="0">
-                            <button class="btn btn-primary checkout-pay-btn" type="button" id="rzp-pay-btn">Pay {{ $stageLabel }} with Razorpay</button>
-                        </form>
-                        <p class="muted checkout-info">Secure checkout is ready. Tap Pay to continue.</p>
+                                <button class="btn btn-primary checkout-pay-btn" type="button" id="rzp-pay-btn">Pay {{ $stageLabel }} with Razorpay</button>
+                            </form>
                     @else
                         @if(!empty($gatewayInitFailed))
                             <p class="muted checkout-info">Unable to initialize Razorpay order right now. Please retry in a moment, or verify gateway API keys/permissions.</p>
@@ -162,6 +186,35 @@
         color: var(--accent);
         font-size: 1.03rem;
     }
+    .checkout-row.is-paid {
+        background: linear-gradient(90deg, rgba(191,255,0,.06), rgba(124,58,237,.02));
+        border-left: 3px solid var(--accent);
+    }
+    .checkout-row.is-paid strong {
+        color: var(--accent);
+    }
+    .checkout-status-badges {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+    }
+    .status-badge {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: .86rem;
+        font-weight: 600;
+        color: rgba(0,0,0,.9);
+        background: rgba(255,255,255,.9);
+    }
+    .status-badge.is-done {
+        background: linear-gradient(90deg, #7c3aed, #16a34a);
+        color: #fff;
+    }
+    .status-badge svg { display: inline-block; vertical-align: middle; }
     .checkout-note {
         margin-top: 12px;
         border: 1px dashed rgba(191,255,0,.28);

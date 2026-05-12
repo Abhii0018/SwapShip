@@ -116,7 +116,7 @@
                         <div class="shipment-state-row">
                             <span class="shipment-state-pill">Payment: {{ $effectivePaymentStatus }}</span>
                             @if($shipment->order->payment_method === 'escrow')
-                                <span class="shipment-state-pill">Upfront: {{ $upfrontStatusLabel }}</span>
+                                <span class="shipment-state-pill">Upfront: @if($upfrontPaid) <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="vertical-align:middle;margin-right:6px"><path d="M20 6L9 17l-5-5" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> paid @else pending @endif</span>
                                 <span class="shipment-state-pill">Remaining: {{ $remainingStatusLabel }}</span>
                             @endif
                             <span class="shipment-state-pill">Settlement: {{ $shipment->order->settlement_status }}</span>
@@ -132,11 +132,7 @@
                                 </a>
                             </p>
                         @elseif($isSeller && $shipment->order->payment_method === 'escrow' && (!$upfrontPaid || ($remainingRequired && !$remainingPaid)))
-                            @if($upfrontPaid)
-                                <p class="muted" style="margin-top:6px;">Buyer paid upfront amount successfully. Waiting for final doorstep payment to unlock next step.</p>
-                            @else
-                                <p class="muted" style="margin-top:6px;">Waiting for buyer to complete upfront checkout before next handover step.</p>
-                            @endif
+                            <p class="muted" style="margin-top:6px;">{{ $upfrontPaid ? 'Buyer has paid the upfront amount.' : 'Awaiting buyer upfront payment.' }}</p>
                             <p class="shipment-lock-note" style="margin-top:6px;">Pay action appears only in buyer account.</p>
                         @endif
                         @if($isBuyer)
