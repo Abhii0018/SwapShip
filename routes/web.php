@@ -22,6 +22,8 @@ Route::get('/explore', [ItemController::class, 'index'])->name('items.index');
 Route::get('/add-item', [ItemController::class, 'create'])->name('items.create');
 Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
 Route::post('/items', [ItemController::class, 'store'])->name('items.store');
+Route::get('/my-items', [ItemController::class, 'myItems'])->middleware('auth')->name('items.my');
+Route::get('/my-dashboard', [ItemController::class, 'myDashboard'])->middleware('auth')->name('items.dashboard');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/my-exchanges', [ExchangeRequestController::class, 'index'])->name('exchanges.index');
 Route::post('/demo/generate-exchange-data', [ExchangeRequestController::class, 'generateDemoData'])

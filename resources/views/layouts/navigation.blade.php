@@ -19,6 +19,7 @@
         <div class="nv-nav-links">
             <a href="{{ route('home') }}">HOME</a>
             <a href="{{ route('items.index') }}">EXPLORE ITEMS</a>
+            <a href="{{ route('items.dashboard') }}" @if(auth()->check()) @else style="display: none;" @endif>MY DASHBOARD</a>
             <a href="{{ route('exchanges.index') }}">MY EXCHANGES</a>
             <a href="{{ route('chat.index') }}">CHAT</a>
             <a href="{{ route('dashboard') }}">DASHBOARD</a>
@@ -81,6 +82,7 @@
     @else
         <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>HOME</a>
         <a href="{{ route('items.index') }}" @if(request()->routeIs('items.index')) aria-current="page" @endif>EXPLORE</a>
+        <a href="{{ route('items.dashboard') }}" @if(request()->routeIs('items.dashboard')) aria-current="page" @endif>MY DASHBOARD</a>
         <a href="{{ route('chat.index') }}" @if(request()->routeIs('chat.*')) aria-current="page" @endif>CHAT</a>
         <a href="{{ route('exchanges.index') }}" @if(request()->routeIs('exchanges.*')) aria-current="page" @endif>EXCHANGE</a>
         <a href="{{ route('items.create') }}" @if(request()->routeIs('items.create')) aria-current="page" @endif>ADD</a>

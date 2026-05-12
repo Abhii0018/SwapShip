@@ -63,6 +63,15 @@
                             Receiver: {{ $request->receiver_confirmed_at ? 'Confirmed' : 'Pending' }}
                         </span>
                     </div>
+                    @if($request->status === 'Accepted' && $request->sender_confirmed_at && $request->receiver_confirmed_at)
+                        <div class="exchange-inline-form">
+                            <a class="btn btn-primary" href="{{ route('shipments.index') }}">Proceed to shipment</a>
+                        </div>
+                    @elseif(in_array($request->status, ['In Progress', 'Completed'], true))
+                        <div class="exchange-inline-form">
+                            <a class="btn btn-primary" href="{{ route('shipments.index') }}">View Shipment</a>
+                        </div>
+                    @endif
                 </article>
             @empty <p class="muted">No sent requests.</p> @endforelse
         </section>

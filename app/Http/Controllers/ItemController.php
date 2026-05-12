@@ -9,6 +9,7 @@ use App\Models\SavedSearch;
 use App\Models\User;
 use Cloudinary\Cloudinary;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -475,6 +476,41 @@ class ItemController extends Controller
         return view('items.show', compact('item', 'existingConversation'));
     }
 
+    public function myItems(Request $request): View
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Please login to view your items.');
+        }
+
+        $items = Item::with('images')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->paginate(12);
+
+        return view('items.myitems', compact('items'));
+    }
+
+    public function myDashboard(Request $request): View
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Please login to view your dashboard.');
+        }
+
+        $myItems = Item::with('images')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->paginate(12, ['*'], 'items_page');
+
+        $myPurchases = \App\Models\Order::with('shipment.exchangeRequest.item.images')
+            ->where('buyer_id', $user->id)
+            ->latest()
+            ->paginate(12, ['*'], 'purchases_page');
+
+        return view('items.my-dashboard', compact('myItems', 'myPurchases'));
+    }
+
     public function edit(Item $item): View
     {
         if ($this->resolveActorId(request()) !== $item->user_id) {
@@ -522,6 +558,21 @@ class ItemController extends Controller
             abort(403);
         }
 
+        // Validate password
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        if (! Hash::check($request->input('password'), $request->user()->password)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Invalid password. Please try again.'
+                ], 422);
+            }
+            return redirect()->route('items.my')
+                ->with('error', 'Invalid password. Please try again.');
+        }
+
         foreach ($item->images as $image) {
             $url = (string) $image->url;
             if (str_starts_with($url, '/storage/')) {
@@ -536,7 +587,12 @@ class ItemController extends Controller
         $item->images()->delete();
         $item->delete();
 
-        return redirect()->route('dashboard')->with('success', 'Listing deleted successfully.');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Item deleted successfully.'
+            ]);
+        }
+        return redirect()->route('items.my')->with('success', 'Item deleted successfully.');
     }
 
     public function saveSearch(Request $request)
