@@ -32,11 +32,6 @@
         </div>
 
         <div class="auth-remember-row">
-            <label for="remember_me" class="auth-remember">
-                <input id="remember_me" type="checkbox" name="remember">
-                <span>Remember me</span>
-            </label>
-
             @if (Route::has('password.request'))
                 <a href="{{ route('password.request') }}" class="auth-muted-link">
                     Forgot password?
