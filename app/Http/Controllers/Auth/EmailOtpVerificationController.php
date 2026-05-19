@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Throwable;
 use Illuminate\View\View;
 
@@ -21,10 +22,33 @@ class EmailOtpVerificationController extends Controller
 
     public function show(Request $request): View|RedirectResponse
     {
+        if (Auth::check()) {
+            /** @var User $authUser */
+            $authUser = Auth::user();
+            if ($authUser->is_verified && $authUser->hasVerifiedEmail()) {
+                return redirect()->route('home');
+            }
+
+            Auth::logout();
+            $request->session()->put('pending_otp_user_id', $authUser->id);
+            if (! EmailVerificationOtp::query()->where('user_id', $authUser->id)->exists()) {
+                self::issueOtp($authUser);
+            }
+        }
+
+        $pendingRegistration = $this->pendingRegistration($request);
+        if ($pendingRegistration) {
+            return view('auth.verify-otp', [
+                'email' => (string) ($pendingRegistration['email'] ?? ''),
+                'resendCooldownSeconds' => $this->remainingResendSecondsFromTimestamp($pendingRegistration['otp_last_sent_at'] ?? null),
+            ]);
+        }
+
         $user = $this->pendingUser($request);
         if ($user) {
             if ($user->hasVerifiedEmail() && $user->is_verified) {
                 $request->session()->forget('pending_otp_user_id');
+
                 return redirect()->route('login')->with('status', 'Account already verified. Please login.');
             }
 
@@ -36,15 +60,7 @@ class EmailOtpVerificationController extends Controller
             ]);
         }
 
-        $pendingRegistration = $this->pendingRegistration($request);
-        if (! $pendingRegistration) {
-            return redirect()->route('login');
-        }
-
-        return view('auth.verify-otp', [
-            'email' => (string) ($pendingRegistration['email'] ?? ''),
-            'resendCooldownSeconds' => $this->remainingResendSecondsFromTimestamp($pendingRegistration['otp_last_sent_at'] ?? null),
-        ]);
+        return redirect()->route('login')->with('status', 'Please register or login to verify your email.');
     }
 
     public function verify(Request $request): RedirectResponse
@@ -53,14 +69,19 @@ class EmailOtpVerificationController extends Controller
             'otp' => ['required', 'digits:6'],
         ]);
 
+        $pendingRegistration = $this->pendingRegistration($request);
+        if ($pendingRegistration) {
+            return $this->verifyPendingRegistration($request);
+        }
+
         $user = $this->pendingUser($request);
         if (! $user) {
-            return $this->verifyPendingRegistration($request);
+            return redirect()->route('login')->withErrors(['email' => 'No pending verification found. Please login or register again.']);
         }
 
         $record = EmailVerificationOtp::query()->where('user_id', $user->id)->first();
         if (! $record) {
-            return back()->withErrors(['otp' => 'OTP has not been generated.']);
+            return back()->withErrors(['otp' => 'OTP has not been generated. Please resend OTP.']);
         }
 
         if (now()->greaterThan($record->expires_at)) {
@@ -73,6 +94,7 @@ class EmailOtpVerificationController extends Controller
 
         if (! Hash::check((string) $request->input('otp'), $record->otp_hash)) {
             $record->increment('attempts');
+
             return back()->withErrors(['otp' => 'Invalid OTP.']);
         }
 
@@ -89,9 +111,14 @@ class EmailOtpVerificationController extends Controller
 
     public function resend(Request $request): RedirectResponse
     {
+        $pendingRegistration = $this->pendingRegistration($request);
+        if ($pendingRegistration) {
+            return $this->resendPendingRegistrationOtp($request);
+        }
+
         $user = $this->pendingUser($request);
         if (! $user) {
-            return $this->resendPendingRegistrationOtp($request);
+            return redirect()->route('login')->withErrors(['email' => 'No pending verification found.']);
         }
 
         $record = EmailVerificationOtp::query()->firstOrNew(['user_id' => $user->id]);
@@ -104,6 +131,33 @@ class EmailOtpVerificationController extends Controller
         }
 
         return back()->with('status', 'OTP sent to your email.');
+    }
+
+    /**
+     * Store pending signup data in session and email a verification OTP.
+     *
+     * @param  array{name?: string, email: string, password: string, phone?: string|null, google_id?: string|null, role?: string, oauth_pending?: bool}  $data
+     */
+    public static function beginPendingRegistration(Request $request, array $data): bool
+    {
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        if ($email === '') {
+            return false;
+        }
+
+        $request->session()->forget(['pending_otp_user_id', 'pending_registration']);
+        $request->session()->put('pending_registration', [
+            'name' => (string) ($data['name'] ?? 'User'),
+            'email' => $email,
+            'password' => (string) ($data['password'] ?? ''),
+            'phone' => $data['phone'] ?? null,
+            'google_id' => $data['google_id'] ?? null,
+            'role' => (string) ($data['role'] ?? 'user'),
+            'oauth_pending' => (bool) ($data['oauth_pending'] ?? false),
+            'pending_expires_at' => now()->addMinutes(30)->toIso8601String(),
+        ]);
+
+        return self::issueOtpForPendingRegistration($request);
     }
 
     public static function issueOtpForPendingRegistration(Request $request): bool
@@ -123,18 +177,7 @@ class EmailOtpVerificationController extends Controller
         $pendingRegistration['otp_last_sent_at'] = now()->toIso8601String();
         $request->session()->put('pending_registration', $pendingRegistration);
 
-        try {
-            $tempUser = new User([
-                'name' => $name,
-                'email' => $email,
-            ]);
-
-            Mail::to($email)->queue(new EmailVerificationOtpMail($tempUser, $otp));
-            return true;
-        } catch (Throwable $exception) {
-            report($exception);
-            return false;
-        }
+        return self::sendOtpMail($email, $name, $otp);
     }
 
     public static function issueOtp(User $user, ?EmailVerificationOtp $record = null): bool
@@ -148,11 +191,23 @@ class EmailOtpVerificationController extends Controller
         $record->last_sent_at = now();
         $record->save();
 
+        return self::sendOtpMail((string) $user->email, (string) $user->name, $otp);
+    }
+
+    protected static function sendOtpMail(string $email, string $name, string $otp): bool
+    {
         try {
-            Mail::to($user->email)->queue(new EmailVerificationOtpMail($user, $otp));
+            $recipient = new User([
+                'name' => $name,
+                'email' => $email,
+            ]);
+
+            Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
+
             return true;
         } catch (Throwable $exception) {
             report($exception);
+
             return false;
         }
     }
@@ -160,6 +215,7 @@ class EmailOtpVerificationController extends Controller
     protected function pendingUser(Request $request): ?User
     {
         $userId = (int) $request->session()->get('pending_otp_user_id');
+
         return $userId ? User::query()->find($userId) : null;
     }
 
@@ -173,6 +229,7 @@ class EmailOtpVerificationController extends Controller
         $pendingExpiresAt = (string) ($pendingRegistration['pending_expires_at'] ?? '');
         if ($pendingExpiresAt !== '' && now()->greaterThan(Carbon::parse($pendingExpiresAt))) {
             $request->session()->forget('pending_registration');
+
             return null;
         }
 
@@ -203,13 +260,19 @@ class EmailOtpVerificationController extends Controller
         if ($otpHash === '' || ! Hash::check((string) $request->input('otp'), $otpHash)) {
             $pendingRegistration['otp_attempts'] = $attempts + 1;
             $request->session()->put('pending_registration', $pendingRegistration);
+
             return back()->withErrors(['otp' => 'Invalid OTP.']);
+        }
+
+        $plainPassword = (string) ($pendingRegistration['password'] ?? '');
+        if ($plainPassword === '') {
+            $plainPassword = Str::password(24);
         }
 
         $user = User::create([
             'name' => (string) ($pendingRegistration['name'] ?? ''),
             'email' => (string) ($pendingRegistration['email'] ?? ''),
-            'password' => (string) ($pendingRegistration['password'] ?? ''),
+            'password' => $plainPassword,
             'google_id' => $pendingRegistration['google_id'] ?? null,
             'phone' => $pendingRegistration['phone'] ?? null,
             'role' => (string) ($pendingRegistration['role'] ?? 'user'),
@@ -253,7 +316,6 @@ class EmailOtpVerificationController extends Controller
 
         $elapsedSeconds = (int) now()->diffInSeconds($record->last_sent_at, false);
 
-        // Guard against clock/timestamp skew so UI cooldown never exceeds 30 seconds.
         if ($elapsedSeconds < 0) {
             return self::RESEND_COOLDOWN_SECONDS;
         }

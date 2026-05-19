@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -33,63 +32,53 @@ class SocialAuthController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return redirect()->route('login')->withErrors([
-                'email' => 'Google authentication failed: ' . $e->getMessage() . '. Please try again.',
+                'email' => 'Google authentication failed. Please try again.',
             ]);
         }
+
+        $email = mb_strtolower(trim((string) $googleUser->email));
 
         $user = User::query()
             ->where('google_id', $googleUser->id)
-            ->orWhere('email', $googleUser->email)
+            ->orWhere('email', $email)
             ->first();
 
         if (! $user) {
-            // New OAuth user — store pending registration and require OTP verification
-            $otp = (string) random_int(100000, 999999);
+            if (User::query()->where('email', $email)->exists()) {
+                return redirect()->route('login', ['email' => $email])
+                    ->with('status', 'Account already exists for this email. Please login.');
+            }
 
-            $request->session()->forget('pending_otp_user_id', 'pending_registration');
-            $request->session()->put('pending_registration', [
+            $otpSent = EmailOtpVerificationController::beginPendingRegistration($request, [
                 'name' => $googleUser->name ?: 'Google User',
-                'email' => mb_strtolower(trim((string) $googleUser->email)),
-                'password' => Hash::make(Str::password(24)),
+                'email' => $email,
+                'password' => Str::password(24),
                 'google_id' => $googleUser->id,
-                'role' => 'user',
-                'pending_expires_at' => now()->addMinutes(10)->toIso8601String(),
-                'otp_hash' => Hash::make($otp),
-                'otp_attempts' => 0,
-                'otp_expires_at' => now()->addMinutes(10)->toIso8601String(),
-                'otp_last_sent_at' => now()->toIso8601String(),
                 'oauth_pending' => true,
             ]);
 
-            try {
-                $tempUser = new User([
-                    'name' => $googleUser->name ?: 'Google User',
-                    'email' => $googleUser->email,
-                ]);
-                \Illuminate\Support\Facades\Mail::to($googleUser->email)
-                    ->queue(new \App\Mail\EmailVerificationOtpMail($tempUser, $otp));
-            } catch (\Throwable $exception) {
-                report($exception);
+            if (! $otpSent) {
+                return redirect()->route('otp.verify.notice')
+                    ->withErrors(['otp' => 'Could not send OTP email right now. Please tap resend in a few seconds.']);
             }
 
             return redirect()->route('otp.verify.notice')
-                ->with('status', 'Welcome! Complete OTP verification to activate your account.');
+                ->with('status', 'Welcome! We sent an OTP to your email to complete registration.');
         }
 
-        // Existing user — login directly (OTP only required for new registrations)
         if (! $user->google_id) {
             $user->google_id = $googleUser->id;
         }
 
-        // Mark as verified since Google OAuth already verified the email
         if (! $user->email_verified_at) {
             $user->email_verified_at = now();
         }
         if (! $user->is_verified) {
             $user->is_verified = true;
         }
-        
+
         $user->save();
 
         Auth::login($user, true);

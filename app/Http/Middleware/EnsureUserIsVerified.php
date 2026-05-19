@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Auth\EmailOtpVerificationController;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,19 +11,18 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserIsVerified
 {
-    public function handle(Request $request, Closure $next, string $redirectRoute = null): Response
+    public function handle(Request $request, Closure $next, ?string $redirectRoute = null): Response
     {
         $user = Auth::user();
 
-        if (! $user) {
+        if (! $user instanceof User) {
             return $next($request);
         }
 
-        if ($user->is_verified) {
+        if ($user->is_verified && $user->hasVerifiedEmail()) {
             return $next($request);
         }
 
-        // Users not yet verified — send them to OTP verification
         $redirectRoute ??= 'otp.verify.notice';
 
         if ($request->expectsJson()) {
@@ -31,7 +32,11 @@ class EnsureUserIsVerified
             ], 403);
         }
 
+        Auth::logout();
+        $request->session()->put('pending_otp_user_id', $user->id);
+        EmailOtpVerificationController::issueOtp($user);
+
         return redirect()->route($redirectRoute)
-            ->with('status', 'Please verify your account before continuing.');
+            ->with('status', 'Please verify your account with OTP to continue.');
     }
 }

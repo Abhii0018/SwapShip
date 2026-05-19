@@ -27,10 +27,6 @@ Route::middleware('guest')->group(function () {
     Route::get('auth/google/redirect', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
     Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
-    Route::get('verify-otp', [EmailOtpVerificationController::class, 'show'])->name('otp.verify.notice');
-    Route::post('verify-otp', [EmailOtpVerificationController::class, 'verify'])->name('otp.verify.submit');
-    Route::post('verify-otp/resend', [EmailOtpVerificationController::class, 'resend'])->name('otp.verify.resend');
-
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
@@ -42,6 +38,12 @@ Route::middleware('guest')->group(function () {
 
     // Reset password via OTP only (password.otp.reset)
 });
+
+Route::get('verify-otp', [EmailOtpVerificationController::class, 'show'])->name('otp.verify.notice');
+Route::post('verify-otp', [EmailOtpVerificationController::class, 'verify'])->name('otp.verify.submit');
+Route::post('verify-otp/resend', [EmailOtpVerificationController::class, 'resend'])
+    ->middleware('throttle:6,1')
+    ->name('otp.verify.resend');
 
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
