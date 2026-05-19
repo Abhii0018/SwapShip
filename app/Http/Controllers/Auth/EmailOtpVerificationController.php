@@ -32,7 +32,7 @@ class EmailOtpVerificationController extends Controller
             Auth::logout();
             $request->session()->put('pending_otp_user_id', $authUser->id);
             if (! EmailVerificationOtp::query()->where('user_id', $authUser->id)->exists()) {
-                self::issueOtp($authUser);
+                self::issueOtp($authUser); // sends in background after response
             }
         }
 
@@ -156,6 +156,7 @@ class EmailOtpVerificationController extends Controller
             'oauth_pending' => (bool) ($data['oauth_pending'] ?? false),
             'pending_expires_at' => now()->addMinutes(30)->toIso8601String(),
         ]);
+        $request->session()->save();
 
         return self::issueOtpForPendingRegistration($request);
     }
@@ -176,8 +177,11 @@ class EmailOtpVerificationController extends Controller
         $pendingRegistration['otp_expires_at'] = now()->addMinutes(10)->toIso8601String();
         $pendingRegistration['otp_last_sent_at'] = now()->toIso8601String();
         $request->session()->put('pending_registration', $pendingRegistration);
+        $request->session()->save();
 
-        return self::sendOtpMail($email, $name, $otp);
+        self::dispatchOtpMail($email, $name, $otp);
+
+        return true;
     }
 
     public static function issueOtp(User $user, ?EmailVerificationOtp $record = null): bool
@@ -191,25 +195,25 @@ class EmailOtpVerificationController extends Controller
         $record->last_sent_at = now();
         $record->save();
 
-        return self::sendOtpMail((string) $user->email, (string) $user->name, $otp);
+        self::dispatchOtpMail((string) $user->email, (string) $user->name, $otp);
+
+        return true;
     }
 
-    protected static function sendOtpMail(string $email, string $name, string $otp): bool
+    protected static function dispatchOtpMail(string $email, string $name, string $otp): void
     {
-        try {
-            $recipient = new User([
-                'name' => $name,
-                'email' => $email,
-            ]);
+        dispatch(static function () use ($email, $name, $otp): void {
+            try {
+                $recipient = new User([
+                    'name' => $name,
+                    'email' => $email,
+                ]);
 
-            Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
-
-            return true;
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return false;
-        }
+                Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        })->afterResponse();
     }
 
     protected function pendingUser(Request $request): ?User

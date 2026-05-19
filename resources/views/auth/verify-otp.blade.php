@@ -11,6 +11,7 @@
         <h1>Verify your email</h1>
         <p>
             Enter the 6-digit OTP sent to <strong>{{ $email }}</strong>.
+            Check spam if you do not see it within a minute.
         </p>
     </div>
 

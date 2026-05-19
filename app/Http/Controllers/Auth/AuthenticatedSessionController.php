@@ -34,15 +34,10 @@ class AuthenticatedSessionController extends Controller
         if ($user && (! $user->hasVerifiedEmail() || ! $user->is_verified)) {
             Auth::logout();
             $request->session()->put('pending_otp_user_id', $user->id);
-            $otpSent = EmailOtpVerificationController::issueOtp($user);
-
-            if (! $otpSent) {
-                return redirect()->route('otp.verify.notice')
-                    ->withErrors(['otp' => 'Could not send OTP email right now. Please use resend after a few seconds.']);
-            }
+            EmailOtpVerificationController::issueOtp($user);
 
             return redirect()->route('otp.verify.notice')
-                ->with('status', 'Please verify your account with OTP to continue.');
+                ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
         }
 
         $request->session()->regenerate();

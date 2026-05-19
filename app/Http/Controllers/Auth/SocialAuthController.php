@@ -30,7 +30,6 @@ class SocialAuthController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Google OAuth callback error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return redirect()->route('login')->withErrors([
@@ -41,17 +40,14 @@ class SocialAuthController extends Controller
         $email = mb_strtolower(trim((string) $googleUser->email));
 
         $user = User::query()
-            ->where('google_id', $googleUser->id)
-            ->orWhere('email', $email)
+            ->where(function ($query) use ($googleUser, $email) {
+                $query->where('google_id', $googleUser->id)
+                    ->orWhere('email', $email);
+            })
             ->first();
 
         if (! $user) {
-            if (User::query()->where('email', $email)->exists()) {
-                return redirect()->route('login', ['email' => $email])
-                    ->with('status', 'Account already exists for this email. Please login.');
-            }
-
-            $otpSent = EmailOtpVerificationController::beginPendingRegistration($request, [
+            EmailOtpVerificationController::beginPendingRegistration($request, [
                 'name' => $googleUser->name ?: 'Google User',
                 'email' => $email,
                 'password' => Str::password(24),
@@ -59,13 +55,8 @@ class SocialAuthController extends Controller
                 'oauth_pending' => true,
             ]);
 
-            if (! $otpSent) {
-                return redirect()->route('otp.verify.notice')
-                    ->withErrors(['otp' => 'Could not send OTP email right now. Please tap resend in a few seconds.']);
-            }
-
             return redirect()->route('otp.verify.notice')
-                ->with('status', 'Welcome! We sent an OTP to your email to complete registration.');
+                ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
         }
 
         if (! $user->google_id) {

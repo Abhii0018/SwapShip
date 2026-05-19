@@ -43,7 +43,7 @@ class RegisteredUserController extends Controller
             'role' => ['required', 'in:user'],
         ]);
 
-        $otpSent = EmailOtpVerificationController::beginPendingRegistration($request, [
+        EmailOtpVerificationController::beginPendingRegistration($request, [
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->password,
@@ -51,11 +51,7 @@ class RegisteredUserController extends Controller
             'role' => 'user',
         ]);
 
-        if (! $otpSent) {
-            return redirect()->route('otp.verify.notice')
-                ->withErrors(['otp' => 'Could not send OTP email right now. Please tap resend in a few seconds.']);
-        }
-
-        return redirect()->route('otp.verify.notice')->with('status', 'We sent an OTP to your email.');
+        return redirect()->route('otp.verify.notice')
+            ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
     }
 }
