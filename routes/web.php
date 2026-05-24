@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentWebhookController;
 use Illuminate\Support\Facades\Route;
+use Throwable;
 
 Route::get('/healthz', fn () => response()->json([
     'ok' => true,
@@ -17,6 +18,24 @@ Route::get('/healthz', fn () => response()->json([
     'time' => now()->toIso8601String(),
     'build_manifest' => file_exists(public_path('build/manifest.json')),
 ]));
+
+Route::get('/healthz/diag', function () {
+    try {
+        $html = view('auth.login', ['prefillEmail' => ''])->render();
+
+        return response()->json([
+            'ok' => true,
+            'rendered_bytes' => strlen($html),
+        ]);
+    } catch (Throwable $exception) {
+        return response()->json([
+            'ok' => false,
+            'error' => $exception->getMessage(),
+            'file' => $exception->getFile(),
+            'line' => $exception->getLine(),
+        ], 500);
+    }
+});
 
 Route::get('/', [ItemController::class, 'landing'])->name('home');
 Route::get('/explore', [ItemController::class, 'index'])->name('items.index');
