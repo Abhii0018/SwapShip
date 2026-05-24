@@ -58,7 +58,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        return \App\Support\AdminAccount::isAdminEmail($this->email);
     }
 
     public function isBanned(): bool

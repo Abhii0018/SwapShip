@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ItemController as AdminItemController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExchangeRequestController;
 use App\Http\Controllers\ItemController;
@@ -47,13 +50,13 @@ Route::get('/healthz/diag', function () {
 
 Route::get('/', [ItemController::class, 'landing'])->name('home');
 Route::get('/explore', [ItemController::class, 'index'])->name('items.index');
-Route::get('/add-item', [ItemController::class, 'create'])->name('items.create');
+Route::get('/add-item', [ItemController::class, 'create'])->middleware(['auth', 'not.admin'])->name('items.create');
 Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
-Route::post('/items', [ItemController::class, 'store'])->name('items.store');
-Route::get('/my-items', [ItemController::class, 'myItems'])->middleware('auth')->name('items.my');
-Route::get('/my-dashboard', [ItemController::class, 'myDashboard'])->middleware('auth')->name('items.dashboard');
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-Route::get('/my-exchanges', [ExchangeRequestController::class, 'index'])->name('exchanges.index');
+Route::post('/items', [ItemController::class, 'store'])->middleware(['auth', 'not.admin'])->name('items.store');
+Route::get('/my-items', [ItemController::class, 'myItems'])->middleware(['auth', 'not.admin'])->name('items.my');
+Route::get('/my-dashboard', [ItemController::class, 'myDashboard'])->middleware(['auth', 'not.admin'])->name('items.dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
+Route::get('/my-exchanges', [ExchangeRequestController::class, 'index'])->middleware(['auth', 'not.admin'])->name('exchanges.index');
 Route::post('/demo/generate-exchange-data', [ExchangeRequestController::class, 'generateDemoData'])
     ->middleware('throttle:2,10')
     ->name('demo.generate-exchange-data');
@@ -128,6 +131,12 @@ Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+    Route::patch('/users/{user}/ban', [AdminUserController::class, 'toggleBan'])->name('users.ban');
+    Route::get('/items', [AdminItemController::class, 'index'])->name('items.index');
+    Route::delete('/items/{item}', [AdminItemController::class, 'destroy'])->name('items.destroy');
+    Route::get('/transactions', [AdminTransactionController::class, 'index'])->name('transactions.index');
 });
 
 Route::get('/run-migration', function () {

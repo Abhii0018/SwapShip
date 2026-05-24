@@ -3,83 +3,67 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ExchangeRequest;
+use App\Models\Item;
+use App\Models\Order;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Support\AdminAccount;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(): View
     {
-        $users = User::latest()->paginate(20);
+        $users = User::query()
+            ->whereNotIn('email', AdminAccount::adminEmails())
+            ->latest()
+            ->paginate(20);
 
         return view('admin.users.index', compact('users'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function show(User $user): View
     {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(User $user)
-    {
-        $user->load('items');
-        return view('admin.users.show', compact('user'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(User $user)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'role' => 'nullable|in:user,admin,moderator',
-            'is_banned' => 'nullable|boolean',
-        ]);
-
-        if (array_key_exists('role', $validated)) {
-            $user->role = $validated['role'];
+        if ($user->isAdmin()) {
+            abort(404);
         }
 
-        if (array_key_exists('is_banned', $validated)) {
-            $user->is_banned = (bool) $validated['is_banned'];
+        $publishedItems = Item::query()
+            ->with('images')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get();
+
+        $purchaseExchanges = ExchangeRequest::query()
+            ->with(['item', 'receiver'])
+            ->where('sender_id', $user->id)
+            ->latest()
+            ->get();
+
+        $ordersAsBuyer = Order::query()
+            ->with(['shipment.exchangeRequest.item'])
+            ->where('buyer_id', $user->id)
+            ->latest()
+            ->get();
+
+        return view('admin.users.show', compact(
+            'user',
+            'publishedItems',
+            'purchaseExchanges',
+            'ordersAsBuyer'
+        ));
+    }
+
+    public function toggleBan(User $user): RedirectResponse
+    {
+        if ($user->isAdmin()) {
+            abort(403);
         }
 
+        $user->is_banned = ! $user->isBanned();
         $user->save();
 
-        return redirect()->route('admin.users.show', $user)->with('success', 'User updated.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(User $user)
-    {
-        $user->delete();
-        return redirect()->route('admin.users.index')->with('success', 'User deleted.');
+        return back()->with('success', $user->isBanned() ? 'User suspended.' : 'User reactivated.');
     }
 }

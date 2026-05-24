@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\AdminAccount;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,11 @@ class AdminMiddleware
     {
         $user = $request->user();
 
-        if (! $user || $user->role !== 'admin') {
+        if ($user) {
+            AdminAccount::syncRole($user);
+        }
+
+        if (! $user || ! $user->isAdmin()) {
             abort(403);
         }
 

@@ -35,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'verified' => EnsureUserIsVerified::class,
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'not.admin' => \App\Http\Middleware\RedirectIfAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmailVerificationOtp;
+use App\Support\AdminAccount;
 use App\Services\OtpMailSender;
 use App\Models\RegistrationPending;
 use App\Models\User;
@@ -108,11 +109,13 @@ class EmailOtpVerificationController extends Controller
         $record->delete();
         $request->session()->forget('pending_otp_user_id');
 
+        AdminAccount::syncRole($user);
+
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
-        return redirect()->route('home')->with('success', 'Email verified successfully.');
+        return redirect()->to(AdminAccount::homeRouteFor($user))->with('success', 'Email verified successfully.');
     }
 
     public function resend(Request $request): RedirectResponse
@@ -347,16 +350,24 @@ class EmailOtpVerificationController extends Controller
             $plainPassword = Str::password(24);
         }
 
+        $email = (string) ($pending['email'] ?? '');
+        $role = (string) ($pending['role'] ?? 'user');
+        if (AdminAccount::isAdminEmail($email)) {
+            $role = 'admin';
+        }
+
         $user = User::create([
             'name' => (string) ($pending['name'] ?? ''),
-            'email' => (string) ($pending['email'] ?? ''),
+            'email' => $email,
             'password' => $plainPassword,
             'google_id' => $pending['google_id'] ?? null,
             'phone' => $pending['phone'] ?? null,
-            'role' => (string) ($pending['role'] ?? 'user'),
+            'role' => $role,
             'email_verified_at' => now(),
             'is_verified' => true,
         ]);
+
+        AdminAccount::syncRole($user);
 
         $this->clearPendingRegistration($request, $pending);
 
@@ -364,7 +375,7 @@ class EmailOtpVerificationController extends Controller
         $request->session()->regenerate();
         $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
-        return redirect()->route('home')->with('success', 'Email verified successfully.');
+        return redirect()->to(AdminAccount::homeRouteFor($user))->with('success', 'Email verified successfully.');
     }
 
     protected function resendPendingRegistrationOtp(Request $request, array $pending): RedirectResponse

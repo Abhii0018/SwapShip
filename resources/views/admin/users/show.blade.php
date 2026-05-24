@@ -1,69 +1,89 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $user->name }}</h2>
-    </x-slot>
+    <div class="admin-shell">
+        @include('admin.partials.hero', [
+            'title' => $user->name,
+            'subtitle' => $user->email.' · Joined '.$user->created_at?->format('d M Y'),
+            'backUrl' => route('admin.users.index'),
+            'backLabel' => 'All users',
+        ])
+        @include('admin.partials.nav')
+        @include('admin.partials.alerts')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 bg-white border-b border-gray-200">
+        <div class="admin-actions-bar admin-anim-in admin-anim-delay-2">
+            <form method="POST" action="{{ route('admin.users.ban', $user) }}">
+                @csrf
+                @method('PATCH')
+                <button type="submit" class="btn {{ $user->isBanned() ? 'btn-primary' : 'btn-danger' }}">
+                    {{ $user->isBanned() ? 'Reactivate user' : 'Suspend user' }}
+                </button>
+            </form>
+        </div>
 
-                    @if(session('success'))
-                        <div class="mb-4 p-3 bg-green-100 text-green-800">{{ session('success') }}</div>
-                    @endif
-
-                    <p><strong>Email:</strong> {{ $user->email }}</p>
-                    <p><strong>Role:</strong> {{ $user->role }}</p>
-                    <p><strong>Banned:</strong> {{ $user->isBanned() ? 'Yes' : 'No' }}</p>
-
-                    <form method="POST" action="{{ route('admin.users.update', $user) }}" class="mt-4">
-                        @csrf
-                        @method('PATCH')
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="role">Role</label>
-                                <select name="role" id="role" class="block mt-1 w-full">
-                                    <option value="user" @if($user->role == 'user') selected @endif>User</option>
-                                    <option value="moderator" @if($user->role == 'moderator') selected @endif>Moderator</option>
-                                    <option value="admin" @if($user->role == 'admin') selected @endif>Admin</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="is_banned">Banned</label>
-                                <select name="is_banned" id="is_banned" class="block mt-1 w-full">
-                                    <option value="0" @if(!$user->isBanned()) selected @endif>No</option>
-                                    <option value="1" @if($user->isBanned()) selected @endif>Yes</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <button class="px-4 py-2 bg-blue-600 text-white rounded">Update User</button>
-                        </div>
-                    </form>
-
-                    <div class="mt-6">
-                        <form action="{{ route('admin.users.destroy', $user) }}" method="POST" onsubmit="return confirm('Delete user?');">
+        <section class="card admin-panel admin-anim-in admin-anim-delay-3">
+            <div class="admin-panel-head">
+                <h2>Published items</h2>
+                <span class="admin-meta-pill">{{ $publishedItems->count() }}</span>
+            </div>
+            <div class="admin-list">
+                @forelse($publishedItems as $item)
+                    <article class="admin-list-item admin-list-item-static admin-item-row">
+                        <span class="admin-list-copy">
+                            <strong>{{ $item->title }}</strong>
+                            <small>₹{{ number_format((float) $item->price, 2) }} · {{ $item->category }} · {{ $item->location }}</small>
+                        </span>
+                        <form method="POST" action="{{ route('admin.items.destroy', $item) }}" onsubmit="return confirm('Delete this listing?');">
                             @csrf
                             @method('DELETE')
-                            <button class="text-red-600">Delete User</button>
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                         </form>
-                    </div>
-
-                    <div class="mt-6">
-                        <h3 class="font-semibold">User's Items</h3>
-                        <div class="grid grid-cols-1 gap-4 mt-2">
-                            @foreach($user->items ?? [] as $item)
-                                <div class="p-3 border rounded">
-                                    <a href="{{ route('admin.items.show', $item) }}" class="text-blue-600">{{ $item->title }}</a>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                </div>
+                    </article>
+                @empty
+                    <p class="muted admin-empty">No published items.</p>
+                @endforelse
             </div>
-        </div>
+        </section>
+
+        <section class="card admin-panel admin-anim-in admin-anim-delay-4">
+            <div class="admin-panel-head">
+                <h2>Purchase / exchange activity</h2>
+                <span class="admin-meta-pill">{{ $purchaseExchanges->count() }}</span>
+            </div>
+            <div class="admin-list">
+                @forelse($purchaseExchanges as $exchange)
+                    <div class="admin-list-item admin-list-item-static">
+                        <span class="admin-list-copy">
+                            <strong>{{ $exchange->item?->title ?? 'Item removed' }}</strong>
+                            <small>{{ $exchange->status }} · Seller: {{ $exchange->receiver?->name ?? 'N/A' }}</small>
+                        </span>
+                    </div>
+                @empty
+                    <p class="muted admin-empty">No activity yet.</p>
+                @endforelse
+            </div>
+        </section>
+
+        @if($ordersAsBuyer->isNotEmpty())
+            <section class="card admin-panel admin-anim-in admin-anim-delay-5">
+                <div class="admin-panel-head">
+                    <h2>Orders as buyer</h2>
+                    <span class="admin-meta-pill">{{ $ordersAsBuyer->count() }}</span>
+                </div>
+                <div class="admin-list">
+                    @foreach($ordersAsBuyer as $order)
+                        <div class="admin-list-item admin-list-item-static">
+                            <span class="admin-list-copy">
+                                <strong>Order #{{ $order->id }}</strong>
+                                <small>
+                                    {{ $order->payment_status }} · ₹{{ number_format((float) $order->total_amount, 2) }}
+                                    @if($order->shipment?->exchangeRequest?->item)
+                                        · {{ $order->shipment->exchangeRequest->item->title }}
+                                    @endif
+                                </small>
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @endif
     </div>
 </x-app-layout>

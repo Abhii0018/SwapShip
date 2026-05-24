@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Support\AdminAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,19 +32,32 @@ class AuthenticatedSessionController extends Controller
 
         /** @var User $user */
         $user = $request->user();
-        if ($user && (! $user->hasVerifiedEmail() || ! $user->is_verified)) {
+
+        $needsOtp = $user && (
+            AdminAccount::requiresLoginOtp($user)
+            || ! $user->hasVerifiedEmail()
+            || ! $user->is_verified
+        );
+
+        if ($needsOtp) {
             Auth::logout();
             $request->session()->put('pending_otp_user_id', $user->id);
             EmailOtpVerificationController::issueOtp($user);
 
-            return redirect()->route('otp.verify.notice')
-                ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
+            $message = AdminAccount::requiresLoginOtp($user)
+                ? 'Admin login requires email OTP. Check your inbox for the 6-digit code.'
+                : 'Enter the OTP sent to your email. It may take up to a minute to arrive.';
+
+            return redirect()->route('otp.verify.notice')->with('status', $message);
         }
 
+        if ($user) {
+            AdminAccount::syncRole($user);
+        }
         $request->session()->regenerate();
         $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
-        return redirect()->intended(route('home', absolute: false));
+        return redirect()->intended(AdminAccount::homeRouteFor($user));
     }
 
     /**

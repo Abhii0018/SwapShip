@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AdminAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules;
@@ -45,7 +46,7 @@ class RegisteredUserController extends Controller
                 'email' => $request->email,
                 'password' => $request->password,
                 'phone' => $request->phone,
-                'role' => 'user',
+                'role' => AdminAccount::isAdminEmail($request->email) ? 'admin' : 'user',
             ]);
         } catch (Throwable $exception) {
             report($exception);

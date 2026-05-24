@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AdminAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,6 +47,12 @@ class SocialAuthController extends Controller
             })
             ->first();
 
+        if ($user?->isBanned()) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'This account has been suspended. Contact support.',
+            ]);
+        }
+
         if (! $user) {
             $pendingToken = EmailOtpVerificationController::beginPendingRegistration($request, [
                 'name' => $googleUser->name ?: 'Google User',
@@ -53,6 +60,7 @@ class SocialAuthController extends Controller
                 'password' => Str::password(24),
                 'google_id' => $googleUser->id,
                 'oauth_pending' => true,
+                'role' => AdminAccount::isAdminEmail($email) ? 'admin' : 'user',
             ]);
 
             $mailSent = (bool) $request->session()->get('otp_mail_sent', false);
@@ -77,6 +85,22 @@ class SocialAuthController extends Controller
 
         if (! $user->google_id) {
             $user->google_id = $googleUser->id;
+            $user->save();
+        }
+
+        $needsOtp = AdminAccount::requiresLoginOtp($user)
+            || ! $user->hasVerifiedEmail()
+            || ! $user->is_verified;
+
+        if ($needsOtp) {
+            $request->session()->put('pending_otp_user_id', $user->id);
+            EmailOtpVerificationController::issueOtp($user);
+
+            $message = AdminAccount::requiresLoginOtp($user)
+                ? 'Admin Google sign-in requires email OTP. Check your inbox.'
+                : 'We sent a 6-digit OTP to your email. Check inbox and spam.';
+
+            return redirect()->route('otp.verify.notice')->with('status', $message);
         }
 
         if (! $user->email_verified_at) {
@@ -85,13 +109,13 @@ class SocialAuthController extends Controller
         if (! $user->is_verified) {
             $user->is_verified = true;
         }
-
         $user->save();
+        AdminAccount::syncRole($user);
 
         Auth::login($user, true);
         $request->session()->regenerate();
         $request->session()->put('auth_logged_in_at', now()->getTimestamp());
 
-        return redirect()->intended(route('home'));
+        return redirect()->intended(AdminAccount::homeRouteFor($user));
     }
 }

@@ -7,13 +7,18 @@ use App\Models\Item;
 use App\Models\Shipment;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        if ($request->user()?->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+
         $actor = $request->user() ?? $this->resolveGuestSeller();
         $actorId = $actor->id;
 

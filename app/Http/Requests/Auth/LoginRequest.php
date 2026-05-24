@@ -50,6 +50,16 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if ($user?->isBanned()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'This account has been suspended. Contact support.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 
