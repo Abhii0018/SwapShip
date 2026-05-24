@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\ExchangeRequest;
 use App\Models\Message;
+use App\Support\MailConfigurator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +19,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        MailConfigurator::apply();
+
         // Production safety fallback: if DB-backed cache/session tables are missing,
         // force file driver to avoid full auth-page 500 failures.
         try {

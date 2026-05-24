@@ -64,7 +64,7 @@ class SocialAuthController extends Controller
                 )
                 ->with(
                     'mail_error',
-                    $mailSent ? null : 'OTP email could not be sent. Use Resend OTP after checking MAIL_* on Render.'
+                    $mailSent ? null : (string) $request->session()->get('otp_mail_error', 'OTP email could not be sent.')
                 );
 
             $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);

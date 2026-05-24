@@ -206,6 +206,7 @@ class EmailOtpVerificationController extends Controller
 
         $mailSent = OtpMailSender::send($email, $sessionPayload['name'], $otp);
         $request->session()->put('otp_mail_sent', $mailSent);
+        $request->session()->put('otp_mail_error', $mailSent ? null : OtpMailSender::lastErrorMessage());
 
         return $token;
     }
@@ -396,7 +397,7 @@ class EmailOtpVerificationController extends Controller
         }
 
         if (! OtpMailSender::send($email, $name, $otp)) {
-            return back()->withErrors(['otp' => 'Could not send OTP email. On Render set MAIL_MAILER=smtp and use a Gmail App Password.']);
+            return back()->withErrors(['otp' => OtpMailSender::lastErrorMessage()]);
         }
 
         return back()->with('status', 'OTP sent to your email.');

@@ -21,6 +21,8 @@ Artisan::command('mail:send-otp {email} {name} {otp}', function (string $email, 
 })->purpose('Send a test email verification OTP');
 
 Artisan::command('mail:check-config', function () {
+    \App\Support\MailConfigurator::apply();
+
     $this->line('MAIL_MAILER: '.config('mail.default'));
     $this->line('MAIL_HOST: '.config('mail.mailers.smtp.host'));
     $this->line('MAIL_PORT: '.config('mail.mailers.smtp.port'));

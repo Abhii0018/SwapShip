@@ -66,9 +66,7 @@ class RegisteredUserController extends Controller
             )
             ->with(
                 'mail_error',
-                $mailSent
-                    ? null
-                    : 'OTP email could not be sent. Use Resend OTP on the next page after checking MAIL_* settings on Render.'
+                $mailSent ? null : (string) $request->session()->get('otp_mail_error', 'OTP email could not be sent. Check MAIL_* on Render.')
             );
 
         $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);
