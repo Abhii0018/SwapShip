@@ -60,6 +60,10 @@ class EmailOtpVerificationController extends Controller
 
             $record = EmailVerificationOtp::query()->where('user_id', $user->id)->first();
 
+            if (AdminAccount::requiresLoginOtp($user) && $request->session()->has('pending_otp_user_id')) {
+                $request->session()->put('admin_login_otp', true);
+            }
+
             return view('auth.verify-otp', [
                 'email' => $user->email,
                 'resendCooldownSeconds' => $this->remainingResendSeconds($record),
@@ -113,9 +117,16 @@ class EmailOtpVerificationController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
-        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
+        AdminAccount::markSessionStarted($request);
 
-        return redirect()->to(AdminAccount::homeRouteFor($user))->with('success', 'Email verified successfully.');
+        $wasAdminLoginOtp = (bool) $request->session()->pull('admin_login_otp', false);
+        $successMessage = $wasAdminLoginOtp || AdminAccount::isAdminEmail($user->email)
+            ? 'Admin verified. Welcome to your dashboard.'
+            : 'Email verified successfully.';
+
+        return redirect()
+            ->to(AdminAccount::homeRouteFor($user))
+            ->with('success', $successMessage);
     }
 
     public function resend(Request $request): RedirectResponse
@@ -373,7 +384,7 @@ class EmailOtpVerificationController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
-        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
+        AdminAccount::markSessionStarted($request);
 
         return redirect()->to(AdminAccount::homeRouteFor($user))->with('success', 'Email verified successfully.');
     }

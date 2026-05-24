@@ -110,7 +110,7 @@ class PasswordResetLinkController extends Controller
         }
 
         $user->forceFill([
-            'password' => Hash::make((string) $request->input('password')),
+            'password' => (string) $request->input('password'),
             'remember_token' => Str::random(60),
         ])->save();
 

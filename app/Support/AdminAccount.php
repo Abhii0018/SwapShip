@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\User;
+use Illuminate\Http\Request;
 
 class AdminAccount
 {
@@ -46,5 +47,15 @@ class AdminAccount
     public static function requiresLoginOtp(User $user): bool
     {
         return self::isAdminEmail($user->email);
+    }
+
+    public static function sessionLifetimeMinutes(): int
+    {
+        return max(1, (int) config('admin.session_lifetime_minutes', 60));
+    }
+
+    public static function markSessionStarted(Request $request): void
+    {
+        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
     }
 }

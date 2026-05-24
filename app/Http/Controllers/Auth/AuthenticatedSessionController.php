@@ -13,9 +13,6 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): View
     {
         return view('auth.login', [
@@ -23,46 +20,42 @@ class AuthenticatedSessionController extends Controller
         ]);
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
 
         /** @var User $user */
         $user = $request->user();
+        AdminAccount::syncRole($user);
 
-        $needsOtp = $user && (
-            AdminAccount::requiresLoginOtp($user)
-            || ! $user->hasVerifiedEmail()
-            || ! $user->is_verified
-        );
+        // Admin: password OK → email OTP → admin dashboard (every login).
+        if (AdminAccount::requiresLoginOtp($user)) {
+            Auth::logout();
+            $request->session()->put('pending_otp_user_id', $user->id);
+            $request->session()->put('admin_login_otp', true);
+            EmailOtpVerificationController::issueOtp($user);
 
-        if ($needsOtp) {
+            return redirect()
+                ->route('otp.verify.notice')
+                ->with('status', 'Password verified. Enter the 6-digit OTP sent to your email to open the admin dashboard.');
+        }
+
+        if (! $user->hasVerifiedEmail() || ! $user->is_verified) {
             Auth::logout();
             $request->session()->put('pending_otp_user_id', $user->id);
             EmailOtpVerificationController::issueOtp($user);
 
-            $message = AdminAccount::requiresLoginOtp($user)
-                ? 'Admin login requires email OTP. Check your inbox for the 6-digit code.'
-                : 'Enter the OTP sent to your email. It may take up to a minute to arrive.';
-
-            return redirect()->route('otp.verify.notice')->with('status', $message);
+            return redirect()
+                ->route('otp.verify.notice')
+                ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
         }
 
-        if ($user) {
-            AdminAccount::syncRole($user);
-        }
         $request->session()->regenerate();
-        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
+        AdminAccount::markSessionStarted($request);
 
         return redirect()->intended(AdminAccount::homeRouteFor($user));
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();

@@ -94,10 +94,13 @@ class SocialAuthController extends Controller
 
         if ($needsOtp) {
             $request->session()->put('pending_otp_user_id', $user->id);
+            if (AdminAccount::requiresLoginOtp($user)) {
+                $request->session()->put('admin_login_otp', true);
+            }
             EmailOtpVerificationController::issueOtp($user);
 
             $message = AdminAccount::requiresLoginOtp($user)
-                ? 'Admin Google sign-in requires email OTP. Check your inbox.'
+                ? 'Google sign-in accepted. Enter the 6-digit OTP sent to your email to open the admin dashboard.'
                 : 'We sent a 6-digit OTP to your email. Check inbox and spam.';
 
             return redirect()->route('otp.verify.notice')->with('status', $message);
@@ -114,7 +117,7 @@ class SocialAuthController extends Controller
 
         Auth::login($user, true);
         $request->session()->regenerate();
-        $request->session()->put('auth_logged_in_at', now()->getTimestamp());
+        AdminAccount::markSessionStarted($request);
 
         return redirect()->intended(AdminAccount::homeRouteFor($user));
     }

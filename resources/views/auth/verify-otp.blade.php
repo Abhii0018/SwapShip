@@ -14,10 +14,14 @@
     @endif
 
     <div class="auth-head">
-        <h1>Verify your email</h1>
+        <h1>{{ session('admin_login_otp') ? 'Admin sign-in OTP' : 'Verify your email' }}</h1>
         <p>
-            Enter the 6-digit OTP sent to <strong>{{ $email }}</strong>.
-            Check spam if you do not see it within a minute.
+            @if (session('admin_login_otp'))
+                Your password was accepted. Enter the 6-digit OTP sent to <strong>{{ $email }}</strong> to open the admin dashboard.
+            @else
+                Enter the 6-digit OTP sent to <strong>{{ $email }}</strong>.
+                Check spam if you do not see it within a minute.
+            @endif
         </p>
     </div>
 

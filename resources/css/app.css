@@ -5954,6 +5954,18 @@ body.profile-crop-open { overflow: hidden; }
     gap: 18px;
     align-items: start;
 }
+.admin-hero-inner-single {
+    grid-template-columns: minmax(0, 1fr);
+    position: relative;
+    overflow: hidden;
+}
+.admin-hero-glow-inline {
+    position: absolute;
+    inset: auto -10% -50% auto;
+    width: 140px;
+    height: 140px;
+    pointer-events: none;
+}
 .admin-hero-copy { display: grid; gap: 10px; }
 .admin-back-link {
     display: inline-flex;
@@ -6327,7 +6339,6 @@ body.profile-crop-open { overflow: hidden; }
 
 @media (max-width: 768px) {
     .admin-hero-inner { grid-template-columns: 1fr; }
-    .admin-hero-aside { display: none; }
     .admin-tabs { border-radius: 16px; }
     .admin-tab { flex: 1 1 calc(50% - 8px); justify-content: center; font-size: 10px; padding: 8px 10px; }
     .admin-item-grid { grid-template-columns: 1fr; }
