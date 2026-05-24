@@ -25,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
                 $sessionTable = (string) config('session.table', 'sessions');
                 if (! Schema::hasTable($sessionTable)) {
                     config(['session.driver' => 'file']);
+                    Log::error('Sessions table missing — using file driver. Run: php artisan migrate --force');
                 }
             }
 
@@ -57,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         // Force HTTPS, but keep host dynamic from the incoming request.
         if ($appUrl !== '' && str_starts_with($appUrl, 'https://')) {
             URL::forceScheme('https');
+            config(['session.secure' => true]);
         }
 
         View::composer('layouts.navigation', function ($view): void {

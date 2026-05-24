@@ -5,20 +5,25 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Mail\EmailVerificationOtpMail;
 use App\Models\EmailVerificationOtp;
+use App\Models\RegistrationPending;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
-use Throwable;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Cookie as SymfonyCookie;
+use Throwable;
 
 class EmailOtpVerificationController extends Controller
 {
     private const RESEND_COOLDOWN_SECONDS = 30;
+
+    private const PENDING_COOKIE = 'pending_reg';
 
     public function show(Request $request): View|RedirectResponse
     {
@@ -32,15 +37,15 @@ class EmailOtpVerificationController extends Controller
             Auth::logout();
             $request->session()->put('pending_otp_user_id', $authUser->id);
             if (! EmailVerificationOtp::query()->where('user_id', $authUser->id)->exists()) {
-                self::issueOtp($authUser); // sends in background after response
+                self::issueOtp($authUser);
             }
         }
 
-        $pendingRegistration = $this->pendingRegistration($request);
-        if ($pendingRegistration) {
+        $pending = $this->resolvePendingRegistration($request);
+        if ($pending) {
             return view('auth.verify-otp', [
-                'email' => (string) ($pendingRegistration['email'] ?? ''),
-                'resendCooldownSeconds' => $this->remainingResendSecondsFromTimestamp($pendingRegistration['otp_last_sent_at'] ?? null),
+                'email' => (string) ($pending['email'] ?? ''),
+                'resendCooldownSeconds' => $this->remainingResendSecondsFromTimestamp($pending['otp_last_sent_at'] ?? null),
             ]);
         }
 
@@ -69,9 +74,9 @@ class EmailOtpVerificationController extends Controller
             'otp' => ['required', 'digits:6'],
         ]);
 
-        $pendingRegistration = $this->pendingRegistration($request);
-        if ($pendingRegistration) {
-            return $this->verifyPendingRegistration($request);
+        $pending = $this->resolvePendingRegistration($request);
+        if ($pending) {
+            return $this->verifyPendingRegistration($request, $pending);
         }
 
         $user = $this->pendingUser($request);
@@ -111,9 +116,9 @@ class EmailOtpVerificationController extends Controller
 
     public function resend(Request $request): RedirectResponse
     {
-        $pendingRegistration = $this->pendingRegistration($request);
-        if ($pendingRegistration) {
-            return $this->resendPendingRegistrationOtp($request);
+        $pending = $this->resolvePendingRegistration($request);
+        if ($pending) {
+            return $this->resendPendingRegistrationOtp($request, $pending);
         }
 
         $user = $this->pendingUser($request);
@@ -126,7 +131,7 @@ class EmailOtpVerificationController extends Controller
             return back()->withErrors(['otp' => 'Please wait a few seconds before requesting again.']);
         }
 
-        if (! $this->issueOtp($user, $record)) {
+        if (! self::issueOtp($user, $record)) {
             return back()->withErrors(['otp' => 'Could not send OTP email right now. Please try again shortly.']);
         }
 
@@ -134,19 +139,31 @@ class EmailOtpVerificationController extends Controller
     }
 
     /**
-     * Store pending signup data in session and email a verification OTP.
+     * Store pending signup and queue OTP email. Returns cookie token on success.
      *
      * @param  array{name?: string, email: string, password: string, phone?: string|null, google_id?: string|null, role?: string, oauth_pending?: bool}  $data
      */
-    public static function beginPendingRegistration(Request $request, array $data): bool
+    public static function beginPendingRegistration(Request $request, array $data): ?string
     {
         $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
         if ($email === '') {
-            return false;
+            return null;
+        }
+
+        try {
+            RegistrationPending::purgeExpired();
+        } catch (Throwable) {
+            // Table may not exist until migrate runs; session fallback still works.
         }
 
         $request->session()->forget(['pending_otp_user_id', 'pending_registration']);
-        $request->session()->put('pending_registration', [
+
+        $token = Str::random(64);
+        $otp = (string) random_int(100000, 999999);
+        $otpHash = Hash::make($otp);
+        $now = now();
+
+        $sessionPayload = [
             'name' => (string) ($data['name'] ?? 'User'),
             'email' => $email,
             'password' => (string) ($data['password'] ?? ''),
@@ -154,34 +171,64 @@ class EmailOtpVerificationController extends Controller
             'google_id' => $data['google_id'] ?? null,
             'role' => (string) ($data['role'] ?? 'user'),
             'oauth_pending' => (bool) ($data['oauth_pending'] ?? false),
-            'pending_expires_at' => now()->addMinutes(30)->toIso8601String(),
-        ]);
+            'pending_expires_at' => $now->copy()->addMinutes(30)->toIso8601String(),
+            'otp_hash' => $otpHash,
+            'otp_attempts' => 0,
+            'otp_expires_at' => $now->copy()->addMinutes(10)->toIso8601String(),
+            'otp_last_sent_at' => $now->toIso8601String(),
+        ];
+
+        $request->session()->put('pending_registration', $sessionPayload);
         $request->session()->save();
 
-        return self::issueOtpForPendingRegistration($request);
-    }
-
-    public static function issueOtpForPendingRegistration(Request $request): bool
-    {
-        $pendingRegistration = (array) $request->session()->get('pending_registration', []);
-        $email = (string) ($pendingRegistration['email'] ?? '');
-        $name = (string) ($pendingRegistration['name'] ?? 'User');
-
-        if ($email === '') {
-            return false;
+        try {
+            RegistrationPending::query()->where('email', $email)->delete();
+            RegistrationPending::query()->create([
+                'token' => $token,
+                'email' => $email,
+                'payload' => [
+                    'name' => $sessionPayload['name'],
+                    'password' => $sessionPayload['password'],
+                    'phone' => $sessionPayload['phone'],
+                    'google_id' => $sessionPayload['google_id'],
+                    'role' => $sessionPayload['role'],
+                    'oauth_pending' => $sessionPayload['oauth_pending'],
+                ],
+                'otp_hash' => $otpHash,
+                'otp_attempts' => 0,
+                'otp_expires_at' => $now->copy()->addMinutes(10),
+                'otp_last_sent_at' => $now,
+                'expires_at' => $now->copy()->addMinutes(30),
+            ]);
+        } catch (Throwable $exception) {
+            report($exception);
+            $token = null;
         }
 
-        $otp = (string) random_int(100000, 999999);
-        $pendingRegistration['otp_hash'] = Hash::make($otp);
-        $pendingRegistration['otp_attempts'] = 0;
-        $pendingRegistration['otp_expires_at'] = now()->addMinutes(10)->toIso8601String();
-        $pendingRegistration['otp_last_sent_at'] = now()->toIso8601String();
-        $request->session()->put('pending_registration', $pendingRegistration);
-        $request->session()->save();
+        self::queueOtpMail($email, $sessionPayload['name'], $otp);
 
-        self::dispatchOtpMail($email, $name, $otp);
+        return $token;
+    }
 
-        return true;
+    public static function pendingCookie(?string $token): ?SymfonyCookie
+    {
+        if ($token === null || $token === '') {
+            return null;
+        }
+
+        $secure = str_starts_with((string) config('app.url'), 'https://');
+
+        return Cookie::make(
+            self::PENDING_COOKIE,
+            $token,
+            30,
+            '/',
+            null,
+            $secure,
+            true,
+            false,
+            'lax'
+        );
     }
 
     public static function issueOtp(User $user, ?EmailVerificationOtp $record = null): bool
@@ -195,16 +242,14 @@ class EmailOtpVerificationController extends Controller
         $record->last_sent_at = now();
         $record->save();
 
-        self::dispatchOtpMail((string) $user->email, (string) $user->name, $otp);
+        self::queueOtpMail((string) $user->email, (string) $user->name, $otp);
 
         return true;
     }
 
-    protected static function dispatchOtpMail(string $email, string $name, string $otp): void
+    protected static function queueOtpMail(string $email, string $name, string $otp): void
     {
-        // Removed afterResponse() for more reliable synchronous dispatch and error logging.
-        // The job will now run immediately within the request cycle.
-        dispatch(static function () use ($email, $name, $otp): void {
+        $job = static function () use ($email, $name, $otp): void {
             try {
                 $recipient = new User([
                     'name' => $name,
@@ -213,26 +258,61 @@ class EmailOtpVerificationController extends Controller
 
                 Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
             } catch (Throwable $exception) {
-                // Log a more detailed error if mail sending fails.
-                Log::error('Failed to send OTP email.', [
-                    'email' => $email,
-                    'error' => $exception->getMessage(),
-                    'trace' => $exception->getTraceAsString(),
-                ]);
-                // Optionally, re-throw the exception if you want the job to be marked as failed.
-                // report($exception);
+                report($exception);
             }
-        });
+        };
+
+        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
+            $job();
+
+            return;
+        }
+
+        dispatch($job)->afterResponse();
     }
 
-    protected function pendingUser(Request $request): ?User
+    protected function resolvePendingRegistration(Request $request): ?array
     {
-        $userId = (int) $request->session()->get('pending_otp_user_id');
+        $fromSession = $this->pendingRegistrationFromSession($request);
+        if ($fromSession) {
+            return $fromSession;
+        }
 
-        return $userId ? User::query()->find($userId) : null;
+        $token = (string) $request->cookie(self::PENDING_COOKIE, '');
+        if ($token === '') {
+            return null;
+        }
+
+        try {
+            $record = RegistrationPending::query()->where('token', $token)->first();
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (! $record || $record->isExpired()) {
+            return null;
+        }
+
+        $payload = $record->payload ?? [];
+
+        return [
+            'name' => (string) ($payload['name'] ?? 'User'),
+            'email' => (string) $record->email,
+            'password' => (string) ($payload['password'] ?? ''),
+            'phone' => $payload['phone'] ?? null,
+            'google_id' => $payload['google_id'] ?? null,
+            'role' => (string) ($payload['role'] ?? 'user'),
+            'oauth_pending' => (bool) ($payload['oauth_pending'] ?? false),
+            'pending_expires_at' => $record->expires_at?->toIso8601String(),
+            'otp_hash' => (string) $record->otp_hash,
+            'otp_attempts' => (int) $record->otp_attempts,
+            'otp_expires_at' => $record->otp_expires_at?->toIso8601String(),
+            'otp_last_sent_at' => $record->otp_last_sent_at?->toIso8601String(),
+            '_db_token' => $record->token,
+        ];
     }
 
-    protected function pendingRegistration(Request $request): ?array
+    protected function pendingRegistrationFromSession(Request $request): ?array
     {
         $pendingRegistration = $request->session()->get('pending_registration');
         if (! is_array($pendingRegistration)) {
@@ -249,52 +329,52 @@ class EmailOtpVerificationController extends Controller
         return $pendingRegistration;
     }
 
-    protected function verifyPendingRegistration(Request $request): RedirectResponse
+    protected function pendingUser(Request $request): ?User
     {
-        $pendingRegistration = $this->pendingRegistration($request);
-        if (! $pendingRegistration) {
-            return redirect()->route('login')->withErrors(['email' => 'No pending verification found.']);
-        }
+        $userId = (int) $request->session()->get('pending_otp_user_id');
 
-        $expiresAt = isset($pendingRegistration['otp_expires_at'])
-            ? Carbon::parse((string) $pendingRegistration['otp_expires_at'])
+        return $userId ? User::query()->find($userId) : null;
+    }
+
+    protected function verifyPendingRegistration(Request $request, array $pending): RedirectResponse
+    {
+        $expiresAt = isset($pending['otp_expires_at'])
+            ? Carbon::parse((string) $pending['otp_expires_at'])
             : null;
 
         if (! $expiresAt || now()->greaterThan($expiresAt)) {
             return back()->withErrors(['otp' => 'OTP expired. Please resend.']);
         }
 
-        $attempts = (int) ($pendingRegistration['otp_attempts'] ?? 0);
+        $attempts = (int) ($pending['otp_attempts'] ?? 0);
         if ($attempts >= 5) {
             return back()->withErrors(['otp' => 'Too many attempts. Please resend OTP.']);
         }
 
-        $otpHash = (string) ($pendingRegistration['otp_hash'] ?? '');
+        $otpHash = (string) ($pending['otp_hash'] ?? '');
         if ($otpHash === '' || ! Hash::check((string) $request->input('otp'), $otpHash)) {
-            $pendingRegistration['otp_attempts'] = $attempts + 1;
-            $request->session()->put('pending_registration', $pendingRegistration);
+            $this->incrementPendingAttempts($request, $pending);
 
             return back()->withErrors(['otp' => 'Invalid OTP.']);
         }
 
-        $plainPassword = (string) ($pendingRegistration['password'] ?? '');
+        $plainPassword = (string) ($pending['password'] ?? '');
         if ($plainPassword === '') {
             $plainPassword = Str::password(24);
         }
 
         $user = User::create([
-            'name' => (string) ($pendingRegistration['name'] ?? ''),
-            'email' => (string) ($pendingRegistration['email'] ?? ''),
+            'name' => (string) ($pending['name'] ?? ''),
+            'email' => (string) ($pending['email'] ?? ''),
             'password' => $plainPassword,
-            'google_id' => $pendingRegistration['google_id'] ?? null,
-            'phone' => $pendingRegistration['phone'] ?? null,
-            'role' => (string) ($pendingRegistration['role'] ?? 'user'),
+            'google_id' => $pending['google_id'] ?? null,
+            'phone' => $pending['phone'] ?? null,
+            'role' => (string) ($pending['role'] ?? 'user'),
             'email_verified_at' => now(),
             'is_verified' => true,
         ]);
 
-        $request->session()->forget('pending_registration');
-        $request->session()->forget('pending_otp_user_id');
+        $this->clearPendingRegistration($request, $pending);
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -303,22 +383,81 @@ class EmailOtpVerificationController extends Controller
         return redirect()->route('home')->with('success', 'Email verified successfully.');
     }
 
-    protected function resendPendingRegistrationOtp(Request $request): RedirectResponse
+    protected function resendPendingRegistrationOtp(Request $request, array $pending): RedirectResponse
     {
-        $pendingRegistration = $this->pendingRegistration($request);
-        if (! $pendingRegistration) {
-            return redirect()->route('login')->withErrors(['email' => 'No pending verification found.']);
-        }
-
-        if ($this->remainingResendSecondsFromTimestamp($pendingRegistration['otp_last_sent_at'] ?? null) > 0) {
+        if ($this->remainingResendSecondsFromTimestamp($pending['otp_last_sent_at'] ?? null) > 0) {
             return back()->withErrors(['otp' => 'Please wait a few seconds before requesting again.']);
         }
 
-        if (! self::issueOtpForPendingRegistration($request)) {
-            return back()->withErrors(['otp' => 'Could not send OTP email right now. Please try again shortly.']);
+        $email = (string) ($pending['email'] ?? '');
+        $name = (string) ($pending['name'] ?? 'User');
+        if ($email === '') {
+            return redirect()->route('login')->withErrors(['email' => 'No pending verification found.']);
         }
 
+        $otp = (string) random_int(100000, 999999);
+        $otpHash = Hash::make($otp);
+        $now = now();
+
+        $pending['otp_hash'] = $otpHash;
+        $pending['otp_attempts'] = 0;
+        $pending['otp_expires_at'] = $now->copy()->addMinutes(10)->toIso8601String();
+        $pending['otp_last_sent_at'] = $now->toIso8601String();
+
+        $request->session()->put('pending_registration', $pending);
+        $request->session()->save();
+
+        $token = (string) ($pending['_db_token'] ?? '');
+        if ($token !== '') {
+            try {
+                RegistrationPending::query()->where('token', $token)->update([
+                    'otp_hash' => $otpHash,
+                    'otp_attempts' => 0,
+                    'otp_expires_at' => $now->copy()->addMinutes(10),
+                    'otp_last_sent_at' => $now,
+                ]);
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        self::queueOtpMail($email, $name, $otp);
+
         return back()->with('status', 'OTP sent to your email.');
+    }
+
+    protected function incrementPendingAttempts(Request $request, array $pending): void
+    {
+        $pending['otp_attempts'] = (int) ($pending['otp_attempts'] ?? 0) + 1;
+        $request->session()->put('pending_registration', $pending);
+
+        $token = (string) ($pending['_db_token'] ?? '');
+        if ($token !== '') {
+            try {
+                RegistrationPending::query()->where('token', $token)->update([
+                    'otp_attempts' => (int) $pending['otp_attempts'],
+                ]);
+            } catch (Throwable) {
+                //
+            }
+        }
+    }
+
+    protected function clearPendingRegistration(Request $request, array $pending): void
+    {
+        $request->session()->forget('pending_registration');
+        $request->session()->forget('pending_otp_user_id');
+
+        $token = (string) ($pending['_db_token'] ?? '');
+        if ($token !== '') {
+            try {
+                RegistrationPending::query()->where('token', $token)->delete();
+            } catch (Throwable) {
+                //
+            }
+        }
+
+        Cookie::queue(Cookie::forget(self::PENDING_COOKIE));
     }
 
     protected function remainingResendSeconds(?EmailVerificationOtp $record): int

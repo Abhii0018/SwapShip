@@ -9,20 +9,16 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
     public function create(): View
     {
         return view('auth.register');
     }
 
     /**
-     * Handle an incoming registration request.
-     *
      * @throws ValidationException
      */
     public function store(Request $request): RedirectResponse
@@ -43,15 +39,30 @@ class RegisteredUserController extends Controller
             'role' => ['required', 'in:user'],
         ]);
 
-        EmailOtpVerificationController::beginPendingRegistration($request, [
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
-            'phone' => $request->phone,
-            'role' => 'user',
-        ]);
+        try {
+            $pendingToken = EmailOtpVerificationController::beginPendingRegistration($request, [
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => $request->password,
+                'phone' => $request->phone,
+                'role' => 'user',
+            ]);
+        } catch (Throwable $exception) {
+            report($exception);
 
-        return redirect()->route('otp.verify.notice')
-            ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
+            return back()
+                ->withInput()
+                ->withErrors(['email' => 'Registration could not be started. Please try again in a moment.']);
+        }
+
+        $response = redirect()->route('otp.verify.notice')
+            ->with('status', 'We sent a 6-digit OTP to your email. Check inbox and spam.');
+
+        $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);
+        if ($cookie) {
+            $response->withCookie($cookie);
+        }
+
+        return $response;
     }
 }

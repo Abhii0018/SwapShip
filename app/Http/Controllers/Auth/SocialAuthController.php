@@ -47,7 +47,7 @@ class SocialAuthController extends Controller
             ->first();
 
         if (! $user) {
-            EmailOtpVerificationController::beginPendingRegistration($request, [
+            $pendingToken = EmailOtpVerificationController::beginPendingRegistration($request, [
                 'name' => $googleUser->name ?: 'Google User',
                 'email' => $email,
                 'password' => Str::password(24),
@@ -55,8 +55,15 @@ class SocialAuthController extends Controller
                 'oauth_pending' => true,
             ]);
 
-            return redirect()->route('otp.verify.notice')
-                ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
+            $response = redirect()->route('otp.verify.notice')
+                ->with('status', 'We sent a 6-digit OTP to your email. Check inbox and spam.');
+
+            $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);
+            if ($cookie) {
+                $response->withCookie($cookie);
+            }
+
+            return $response;
         }
 
         if (! $user->google_id) {
