@@ -19,7 +19,8 @@ class SendgridMailServiceProvider extends ServiceProvider
         Mail::extend('sendgrid', function (array $config) {
             $factory = new SendgridTransportFactory(null, HttpClient::create());
 
-            $key = (string) ($config['key'] ?? env('SENDGRID_API_KEY', ''));
+            $key = \App\Support\MailConfigurator::normalizedSendgridKey()
+                ?: (string) ($config['key'] ?? '');
 
             return $factory->create(new Dsn(
                 'sendgrid+api',

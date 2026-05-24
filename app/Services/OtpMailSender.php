@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\EmailVerificationOtpMail;
 use App\Models\User;
 use App\Support\MailConfigurator;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -19,27 +20,25 @@ class OtpMailSender
         MailConfigurator::apply();
 
         if (MailConfigurator::isRenderHost() && ! MailConfigurator::usesApiMailer()) {
-            self::$lastError = 'Render blocks Gmail SMTP. Add SENDGRID_API_KEY on Render (free at sendgrid.com). Verify your Gmail as a Single Sender, then set MAIL_MAILER=sendgrid.';
-
-            Log::error('OTP mail skipped on Render without API mailer', ['email' => $email]);
+            self::$lastError = 'Render blocks Gmail SMTP. Add SENDGRID_API_KEY on Render and set MAIL_MAILER=sendgrid.';
 
             return false;
         }
 
         $mailer = (string) config('mail.default');
 
-        if ($mailer === 'log') {
-            self::$lastError = 'MAIL_MAILER is "log" — no real emails are sent. On Render set MAIL_MAILER=sendgrid and SENDGRID_API_KEY.';
+        if ($mailer === 'sendgrid') {
+            return self::sendViaSendGridApi($email, $name, $otp);
+        }
 
-            Log::warning('OTP mail skipped', ['email' => $email, 'reason' => self::$lastError]);
+        if ($mailer === 'log') {
+            self::$lastError = 'MAIL_MAILER is "log" — set MAIL_MAILER=sendgrid and SENDGRID_API_KEY on Render.';
 
             return false;
         }
 
         if ($mailer === 'smtp' && ! self::smtpIsConfigured()) {
-            self::$lastError = 'MAIL_USERNAME or MAIL_PASSWORD is missing. On Render use SendGrid instead (SENDGRID_API_KEY).';
-
-            Log::error('OTP mail skipped', ['email' => $email, 'reason' => self::$lastError]);
+            self::$lastError = 'SMTP credentials missing. On Render use SENDGRID_API_KEY instead.';
 
             return false;
         }
@@ -74,6 +73,118 @@ class OtpMailSender
         return self::$lastError ?? 'Email could not be sent.';
     }
 
+    protected static function sendViaSendGridApi(string $email, string $name, string $otp): bool
+    {
+        $apiKey = MailConfigurator::normalizedSendgridKey();
+
+        if ($apiKey === '') {
+            self::$lastError = 'SENDGRID_API_KEY is empty on Render. Paste your SG.xxx key (no quotes).';
+
+            return false;
+        }
+
+        if (! str_starts_with($apiKey, 'SG.')) {
+            self::$lastError = 'SENDGRID_API_KEY must start with SG. Remove quotes/spaces in Render env.';
+
+            return false;
+        }
+
+        $fromEmail = trim((string) config('mail.from.address'));
+        $fromName = trim((string) config('mail.from.name', 'SwapShip'));
+
+        if ($fromEmail === '' || $fromEmail === 'hello@example.com') {
+            $fromEmail = 'abhisheksah018@gmail.com';
+        }
+
+        try {
+            $html = view('emails.auth.verify-otp', [
+                'name' => $name,
+                'otp' => $otp,
+            ])->render();
+        } catch (Throwable $exception) {
+            report($exception);
+            self::$lastError = 'Could not build OTP email template.';
+
+            return false;
+        }
+
+        try {
+            $response = Http::timeout(20)
+                ->withToken($apiKey)
+                ->acceptJson()
+                ->post('https://api.sendgrid.com/v3/mail/send', [
+                    'personalizations' => [
+                        [
+                            'to' => [
+                                ['email' => $email],
+                            ],
+                        ],
+                    ],
+                    'from' => [
+                        'email' => $fromEmail,
+                        'name' => $fromName,
+                    ],
+                    'subject' => 'SwapShip Email Verification OTP',
+                    'content' => [
+                        [
+                            'type' => 'text/html',
+                            'value' => $html,
+                        ],
+                    ],
+                ]);
+
+            if ($response->status() === 202) {
+                Log::info('OTP sent via SendGrid API', ['email' => $email, 'from' => $fromEmail]);
+
+                return true;
+            }
+
+            $errors = $response->json('errors');
+            $detail = is_array($errors)
+                ? collect($errors)->pluck('message')->filter()->implode(' ')
+                : trim((string) $response->body());
+
+            self::$lastError = self::humanizeSendGridResponse($detail, $response->status());
+
+            Log::error('SendGrid API rejected OTP email', [
+                'email' => $email,
+                'from' => $fromEmail,
+                'status' => $response->status(),
+                'detail' => $detail,
+            ]);
+
+            return false;
+        } catch (Throwable $exception) {
+            report($exception);
+            self::$lastError = 'SendGrid request failed: '.$exception->getMessage();
+
+            return false;
+        }
+    }
+
+    protected static function humanizeSendGridResponse(string $detail, int $status): string
+    {
+        $lower = strtolower($detail);
+
+        if (str_contains($lower, 'sender') && (str_contains($lower, 'verified') || str_contains($lower, 'identity'))) {
+            return 'SendGrid: sender not verified. Go to SendGrid → Settings → Sender Authentication → verify abhisheksah018@gmail.com as Single Sender.';
+        }
+
+        if ($status === 401 || str_contains($lower, 'authorization') || str_contains($lower, 'api key')) {
+            return 'SendGrid API key rejected. Create a new key with Mail Send permission. On Render paste only SG.xxx with no quotes.';
+        }
+
+        if ($status === 403 && str_contains($lower, 'access forbidden')) {
+            return 'SendGrid account not ready. Complete sender verification and trial setup in SendGrid dashboard.';
+        }
+
+        if ($detail !== '') {
+            return 'SendGrid: '.$detail;
+        }
+
+        return 'SendGrid returned HTTP '.$status.'. Check sender verification and API key permissions.';
+    }
+
     protected static function smtpIsConfigured(): bool
     {
         $username = (string) config('mail.mailers.smtp.username');
@@ -87,19 +198,11 @@ class OtpMailSender
         $lower = strtolower($message);
 
         if (MailConfigurator::isRenderHost() && ($mailer === 'smtp' || str_contains($lower, 'connection'))) {
-            return 'Render blocks Gmail SMTP. Use SendGrid: add SENDGRID_API_KEY and MAIL_MAILER=sendgrid on Render (verify your Gmail as Single Sender at sendgrid.com).';
+            return 'Render blocks Gmail SMTP. Use SENDGRID_API_KEY and MAIL_MAILER=sendgrid.';
         }
 
-        if (str_contains($lower, 'username and password not accepted') || str_contains($lower, 'authentication failed')) {
-            return 'Email login rejected. On Render use SendGrid API key, not Gmail SMTP password.';
-        }
-
-        if (str_contains($lower, 'unauthorized') || str_contains($lower, '403') || str_contains($lower, '401')) {
-            return 'SendGrid API key is invalid. Create a new key at sendgrid.com with Mail Send permission.';
-        }
-
-        if (strlen($message) > 200) {
-            return substr($message, 0, 197).'...';
+        if (strlen($message) > 220) {
+            return substr($message, 0, 217).'...';
         }
 
         return $message;

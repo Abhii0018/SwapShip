@@ -6,7 +6,7 @@ class MailConfigurator
 {
     public static function apply(): void
     {
-        $sendgridKey = trim((string) env('SENDGRID_API_KEY', ''));
+        $sendgridKey = self::normalizedSendgridKey();
 
         if ($sendgridKey !== '') {
             config([
@@ -40,7 +40,6 @@ class MailConfigurator
         }
 
         if (self::isRenderHost() && $host !== '') {
-            // Render blocks outbound SMTP; avoid 20s timeouts waiting on Gmail.
             config(['mail.mailers.smtp.timeout' => 3]);
 
             return;
@@ -59,6 +58,14 @@ class MailConfigurator
         }
     }
 
+    public static function normalizedSendgridKey(): string
+    {
+        $key = trim((string) env('SENDGRID_API_KEY', ''));
+        $key = trim($key, " \t\n\r\0\x0B\"'");
+
+        return str_replace(' ', '', $key);
+    }
+
     public static function isRenderHost(): bool
     {
         if (filter_var(env('RENDER', false), FILTER_VALIDATE_BOOL)) {
@@ -72,6 +79,6 @@ class MailConfigurator
 
     public static function usesApiMailer(): bool
     {
-        return trim((string) env('SENDGRID_API_KEY', '')) !== '';
+        return self::normalizedSendgridKey() !== '';
     }
 }
