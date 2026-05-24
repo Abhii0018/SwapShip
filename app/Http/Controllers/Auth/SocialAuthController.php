@@ -55,15 +55,8 @@ class SocialAuthController extends Controller
                 'oauth_pending' => true,
             ]);
 
-            $mailSent = (bool) $request->session()->get('otp_mail_sent', true);
-
             $response = redirect()->route('otp.verify.notice')
-                ->with(
-                    'status',
-                    $mailSent
-                        ? 'We sent a 6-digit OTP to your email. Check inbox and spam (may take up to 1 minute).'
-                        : 'Registration started. Email could not be sent — use Resend OTP on the next page.'
-                );
+                ->with('status', 'We sent a 6-digit OTP to your email. Check inbox and spam.');
 
             $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);
             if ($cookie) {

@@ -2,6 +2,7 @@
 
 use App\Models\Item;
 use App\Models\ItemImage;
+use App\Services\OtpMailSender;
 use Cloudinary\Cloudinary;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -10,6 +11,10 @@ use Illuminate\Support\Facades\Storage;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('mail:send-otp {email} {name} {otp}', function (string $email, string $name, string $otp) {
+    return OtpMailSender::send($email, $name, $otp) ? 0 : 1;
+})->purpose('Send email verification OTP in a background process');
 
 Artisan::command('images:migrate-to-cloudinary {--dry-run : Preview without saving DB changes}', function () {
     $cloudName = (string) config('cloudinary.cloud.cloud_name');
