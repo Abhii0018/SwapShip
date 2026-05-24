@@ -4,9 +4,7 @@ COPY package*.json ./
 RUN npm ci
 COPY resources ./resources
 COPY public ./public
-COPY vite.config.js ./
-COPY postcss.config.js ./
-COPY tailwind.config.js ./
+COPY vite.config.js postcss.config.js tailwind.config.js ./
 RUN npm run build
 
 FROM php:8.4-cli
@@ -20,9 +18,13 @@ RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql zip
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
-COPY . .
 
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction
+
 COPY --from=assets /app/public/build /var/www/public/build
 
 RUN chmod -R 775 storage bootstrap/cache
