@@ -202,6 +202,8 @@ class EmailOtpVerificationController extends Controller
 
     protected static function dispatchOtpMail(string $email, string $name, string $otp): void
     {
+        // Removed afterResponse() for more reliable synchronous dispatch and error logging.
+        // The job will now run immediately within the request cycle.
         dispatch(static function () use ($email, $name, $otp): void {
             try {
                 $recipient = new User([
@@ -211,9 +213,16 @@ class EmailOtpVerificationController extends Controller
 
                 Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
             } catch (Throwable $exception) {
-                report($exception);
+                // Log a more detailed error if mail sending fails.
+                Log::error('Failed to send OTP email.', [
+                    'email' => $email,
+                    'error' => $exception->getMessage(),
+                    'trace' => $exception->getTraceAsString(),
+                ]);
+                // Optionally, re-throw the exception if you want the job to be marked as failed.
+                // report($exception);
             }
-        })->afterResponse();
+        });
     }
 
     protected function pendingUser(Request $request): ?User
