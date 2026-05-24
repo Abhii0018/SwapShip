@@ -45,6 +45,7 @@ class EmailOtpVerificationController extends Controller
             return view('auth.verify-otp', [
                 'email' => (string) ($pending['email'] ?? ''),
                 'resendCooldownSeconds' => $this->remainingResendSecondsFromTimestamp($pending['otp_last_sent_at'] ?? null),
+                'mailError' => (string) $request->session()->get('otp_mail_error', ''),
             ]);
         }
 
@@ -61,6 +62,7 @@ class EmailOtpVerificationController extends Controller
             return view('auth.verify-otp', [
                 'email' => $user->email,
                 'resendCooldownSeconds' => $this->remainingResendSeconds($record),
+                'mailError' => (string) $request->session()->get('otp_mail_error', ''),
             ]);
         }
 
@@ -131,10 +133,14 @@ class EmailOtpVerificationController extends Controller
         }
 
         if (! self::issueOtp($user, $record)) {
-            return back()->withErrors(['otp' => 'Could not send OTP email. Check spam folder or try again in a moment.']);
+            return back()
+                ->withErrors(['otp' => OtpMailSender::lastErrorMessage()])
+                ->with('mail_error', OtpMailSender::lastErrorMessage());
         }
 
-        return back()->with('status', 'OTP sent to your email.');
+        $request->session()->forget('otp_mail_error');
+
+        return back()->with('status', 'OTP sent to your email. Check inbox and spam.');
     }
 
     /**
@@ -199,6 +205,9 @@ class EmailOtpVerificationController extends Controller
                 'otp_last_sent_at' => $now,
                 'expires_at' => $now->copy()->addMinutes(30),
             ]);
+
+            $sessionPayload['_db_token'] = $token;
+            $request->session()->put('pending_registration', $sessionPayload);
         } catch (Throwable $exception) {
             report($exception);
             $token = null;
@@ -397,10 +406,17 @@ class EmailOtpVerificationController extends Controller
         }
 
         if (! OtpMailSender::send($email, $name, $otp)) {
-            return back()->withErrors(['otp' => OtpMailSender::lastErrorMessage()]);
+            $error = OtpMailSender::lastErrorMessage();
+            $request->session()->put('otp_mail_error', $error);
+
+            return back()
+                ->withErrors(['otp' => $error])
+                ->with('mail_error', $error);
         }
 
-        return back()->with('status', 'OTP sent to your email.');
+        $request->session()->forget('otp_mail_error');
+
+        return back()->with('status', 'OTP sent to your email. Check inbox and spam.');
     }
 
     protected function incrementPendingAttempts(Request $request, array $pending): void

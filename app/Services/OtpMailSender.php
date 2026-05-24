@@ -93,7 +93,9 @@ class OtpMailSender
         $fromName = trim((string) config('mail.from.name', 'SwapShip'));
 
         if ($fromEmail === '' || $fromEmail === 'hello@example.com') {
-            $fromEmail = 'abhisheksah018@gmail.com';
+            self::$lastError = 'MAIL_FROM_ADDRESS is not set. Please set it in your .env file to a verified SendGrid sender email.';
+
+            return false;
         }
 
         try {
@@ -107,6 +109,8 @@ class OtpMailSender
 
             return false;
         }
+
+        $plainText = "Hi {$name},\n\nYour SwapShip verification code is: {$otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, ignore this email.";
 
         try {
             $response = Http::timeout(20)
@@ -124,8 +128,16 @@ class OtpMailSender
                         'email' => $fromEmail,
                         'name' => $fromName,
                     ],
+                    'reply_to' => [
+                        'email' => $fromEmail,
+                        'name' => $fromName,
+                    ],
                     'subject' => 'SwapShip Email Verification OTP',
                     'content' => [
+                        [
+                            'type' => 'text/plain',
+                            'value' => $plainText,
+                        ],
                         [
                             'type' => 'text/html',
                             'value' => $html,
@@ -167,7 +179,11 @@ class OtpMailSender
         $lower = strtolower($detail);
 
         if (str_contains($lower, 'sender') && (str_contains($lower, 'verified') || str_contains($lower, 'identity'))) {
-            return 'SendGrid: sender not verified. Go to SendGrid → Settings → Sender Authentication → verify abhisheksah018@gmail.com as Single Sender.';
+            $from = trim((string) config('mail.from.address'));
+
+            return 'SendGrid: sender not verified. In SendGrid → Settings → Sender Authentication, verify '
+                .($from !== '' ? $from : 'your MAIL_FROM_ADDRESS')
+                .' as a Single Sender.';
         }
 
         if ($status === 401 || str_contains($lower, 'authorization') || str_contains($lower, 'api key')) {

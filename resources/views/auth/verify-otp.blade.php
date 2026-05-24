@@ -7,9 +7,9 @@
         </div>
     @endif
 
-    @if (session('mail_error'))
+    @if (session('mail_error') || ! empty($mailError ?? ''))
         <div class="auth-error" style="margin-bottom: 1rem;">
-            {{ session('mail_error') }}
+            {{ session('mail_error') ?: ($mailError ?? '') }}
         </div>
     @endif
 

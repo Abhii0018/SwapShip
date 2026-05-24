@@ -9,12 +9,28 @@ class MailConfigurator
         $sendgridKey = self::normalizedSendgridKey();
 
         if ($sendgridKey !== '') {
+            $from = trim((string) env('MAIL_FROM_ADDRESS', ''));
+            $fromName = trim((string) env('MAIL_FROM_NAME', env('APP_NAME', 'SwapShip')));
+
             config([
                 'mail.default' => 'sendgrid',
                 'mail.mailers.sendgrid.key' => $sendgridKey,
             ]);
 
+            if ($from !== '' && $from !== 'hello@example.com') {
+                config(['mail.from.address' => $from]);
+            }
+
+            if ($fromName !== '') {
+                config(['mail.from.name' => $fromName]);
+            }
+
             return;
+        }
+
+        $mailer = strtolower(trim((string) env('MAIL_MAILER', '')));
+        if ($mailer === 'sendgrid' && $sendgridKey === '') {
+            config(['mail.default' => 'log']);
         }
 
         $host = trim((string) env('MAIL_HOST', ''));

@@ -11,12 +11,21 @@ use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentWebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/healthz', fn () => response()->json([
-    'ok' => true,
-    'app' => config('app.name'),
-    'time' => now()->toIso8601String(),
-    'build_manifest' => file_exists(public_path('build/manifest.json')),
-]));
+Route::get('/healthz', function () {
+    \App\Support\MailConfigurator::apply();
+
+    return response()->json([
+        'ok' => true,
+        'app' => config('app.name'),
+        'time' => now()->toIso8601String(),
+        'build_manifest' => file_exists(public_path('build/manifest.json')),
+        'mail' => [
+            'mailer' => config('mail.default'),
+            'sendgrid_configured' => \App\Support\MailConfigurator::usesApiMailer(),
+            'from' => config('mail.from.address'),
+        ],
+    ]);
+});
 
 Route::get('/healthz/diag', function () {
     try {
