@@ -130,7 +130,9 @@ class EmailOtpVerificationController extends Controller
             return back()->withErrors(['otp' => 'Please wait a few seconds before requesting again.']);
         }
 
-        self::issueOtp($user, $record);
+        if (! self::issueOtp($user, $record)) {
+            return back()->withErrors(['otp' => 'Could not send OTP email. Check spam folder or try again in a moment.']);
+        }
 
         return back()->with('status', 'OTP sent to your email.');
     }
@@ -202,7 +204,8 @@ class EmailOtpVerificationController extends Controller
             $token = null;
         }
 
-        OtpMailSender::dispatch($email, $sessionPayload['name'], $otp);
+        $mailSent = OtpMailSender::send($email, $sessionPayload['name'], $otp);
+        $request->session()->put('otp_mail_sent', $mailSent);
 
         return $token;
     }
@@ -239,9 +242,7 @@ class EmailOtpVerificationController extends Controller
         $record->last_sent_at = now();
         $record->save();
 
-        OtpMailSender::dispatch((string) $user->email, (string) $user->name, $otp);
-
-        return true;
+        return OtpMailSender::send((string) $user->email, (string) $user->name, $otp);
     }
 
     protected function resolvePendingRegistration(Request $request): ?array
@@ -394,7 +395,9 @@ class EmailOtpVerificationController extends Controller
             }
         }
 
-        OtpMailSender::dispatch($email, $name, $otp);
+        if (! OtpMailSender::send($email, $name, $otp)) {
+            return back()->withErrors(['otp' => 'Could not send OTP email. On Render set MAIL_MAILER=smtp and use a Gmail App Password.']);
+        }
 
         return back()->with('status', 'OTP sent to your email.');
     }

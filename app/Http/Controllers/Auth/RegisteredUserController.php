@@ -55,8 +55,21 @@ class RegisteredUserController extends Controller
                 ->withErrors(['email' => 'Registration could not be started. Please try again in a moment.']);
         }
 
+        $mailSent = (bool) $request->session()->get('otp_mail_sent', false);
+
         $response = redirect()->route('otp.verify.notice')
-            ->with('status', 'We sent a 6-digit OTP to your email. Check inbox and spam.');
+            ->with(
+                'status',
+                $mailSent
+                    ? 'We sent a 6-digit OTP to your email. Check inbox and spam.'
+                    : null
+            )
+            ->with(
+                'mail_error',
+                $mailSent
+                    ? null
+                    : 'OTP email could not be sent. Use Resend OTP on the next page after checking MAIL_* settings on Render.'
+            );
 
         $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);
         if ($cookie) {

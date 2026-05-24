@@ -7,6 +7,12 @@
         </div>
     @endif
 
+    @if (session('mail_error'))
+        <div class="auth-error" style="margin-bottom: 1rem;">
+            {{ session('mail_error') }}
+        </div>
+    @endif
+
     <div class="auth-head">
         <h1>Verify your email</h1>
         <p>

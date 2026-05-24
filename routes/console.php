@@ -13,8 +13,31 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('mail:send-otp {email} {name} {otp}', function (string $email, string $name, string $otp) {
-    return OtpMailSender::send($email, $name, $otp) ? 0 : 1;
-})->purpose('Send email verification OTP in a background process');
+    $ok = OtpMailSender::send($email, $name, $otp);
+
+    $this->info($ok ? 'OTP email sent.' : 'OTP email failed. Check storage/logs/laravel.log and MAIL_* env vars.');
+
+    return $ok ? 0 : 1;
+})->purpose('Send a test email verification OTP');
+
+Artisan::command('mail:check-config', function () {
+    $this->line('MAIL_MAILER: '.config('mail.default'));
+    $this->line('MAIL_HOST: '.config('mail.mailers.smtp.host'));
+    $this->line('MAIL_PORT: '.config('mail.mailers.smtp.port'));
+    $this->line('MAIL_USERNAME: '.(config('mail.mailers.smtp.username') ? 'set' : 'MISSING'));
+    $this->line('MAIL_PASSWORD: '.(config('mail.mailers.smtp.password') ? 'set' : 'MISSING'));
+    $this->line('MAIL_FROM: '.config('mail.from.address'));
+
+    if (config('mail.default') === 'log') {
+        $this->error('MAIL_MAILER is log — no real emails are sent. Set MAIL_MAILER=smtp on Render.');
+
+        return 1;
+    }
+
+    $this->info('Mail config looks usable.');
+
+    return 0;
+})->purpose('Show whether SMTP mail env vars are configured');
 
 Artisan::command('images:migrate-to-cloudinary {--dry-run : Preview without saving DB changes}', function () {
     $cloudName = (string) config('cloudinary.cloud.cloud_name');

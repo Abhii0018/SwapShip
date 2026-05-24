@@ -10,56 +10,18 @@ use Throwable;
 
 class OtpMailSender
 {
-    /**
-     * Queue OTP email in a background process so the HTTP response returns immediately.
-     */
-    public static function dispatch(string $email, string $name, string $otp): void
-    {
-        if (config('mail.default') === 'log') {
-            Log::warning('OTP mail skipped: MAIL_MAILER is set to log', ['email' => $email]);
-
-            return;
-        }
-
-        if (app()->runningUnitTests()) {
-            self::send($email, $name, $otp);
-
-            return;
-        }
-
-        if (! self::canRunDetachedCommand()) {
-            self::send($email, $name, $otp);
-
-            return;
-        }
-
-        try {
-            $command = sprintf(
-                '%s %s mail:send-otp %s %s %s > /dev/null 2>&1 &',
-                escapeshellarg(PHP_BINARY),
-                escapeshellarg(base_path('artisan')),
-                escapeshellarg($email),
-                escapeshellarg($name),
-                escapeshellarg($otp)
-            );
-
-            exec($command, $output, $exitCode);
-
-            if ($exitCode !== 0) {
-                throw new \RuntimeException('Failed to start OTP mail background process.');
-            }
-
-            Log::info('OTP mail background send started', ['email' => $email]);
-        } catch (Throwable $exception) {
-            report($exception);
-            self::send($email, $name, $otp);
-        }
-    }
-
     public static function send(string $email, string $name, string $otp): bool
     {
-        if (config('mail.default') === 'log') {
-            Log::warning('OTP mail skipped: MAIL_MAILER is set to log', ['email' => $email]);
+        $mailer = (string) config('mail.default');
+
+        if ($mailer === 'log') {
+            Log::warning('OTP mail skipped: MAIL_MAILER is log (emails are not sent)', ['email' => $email]);
+
+            return false;
+        }
+
+        if ($mailer === 'smtp' && ! self::smtpIsConfigured()) {
+            Log::error('OTP mail skipped: SMTP username/password missing on server', ['email' => $email]);
 
             return false;
         }
@@ -79,7 +41,8 @@ class OtpMailSender
             report($exception);
             Log::error('OTP verification email failed', [
                 'email' => $email,
-                'mailer' => config('mail.default'),
+                'mailer' => $mailer,
+                'host' => config('mail.mailers.smtp.host'),
                 'error' => $exception->getMessage(),
             ]);
 
@@ -87,14 +50,11 @@ class OtpMailSender
         }
     }
 
-    protected static function canRunDetachedCommand(): bool
+    protected static function smtpIsConfigured(): bool
     {
-        if (! function_exists('exec')) {
-            return false;
-        }
+        $username = (string) config('mail.mailers.smtp.username');
+        $password = (string) config('mail.mailers.smtp.password');
 
-        $disabled = array_filter(array_map('trim', explode(',', (string) ini_get('disable_functions'))));
-
-        return ! in_array('exec', $disabled, true);
+        return $username !== '' && $password !== '';
     }
 }
