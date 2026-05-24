@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -205,7 +206,8 @@ class EmailOtpVerificationController extends Controller
             $token = null;
         }
 
-        self::queueOtpMail($email, $sessionPayload['name'], $otp);
+        $mailSent = self::sendOtpMail($email, $sessionPayload['name'], $otp);
+        $request->session()->put('otp_mail_sent', $mailSent);
 
         return $token;
     }
@@ -242,33 +244,41 @@ class EmailOtpVerificationController extends Controller
         $record->last_sent_at = now();
         $record->save();
 
-        self::queueOtpMail((string) $user->email, (string) $user->name, $otp);
-
-        return true;
+        return self::sendOtpMail((string) $user->email, (string) $user->name, $otp);
     }
 
-    protected static function queueOtpMail(string $email, string $name, string $otp): void
+    /**
+     * Send OTP immediately (required on Render/php -S where afterResponse may not run).
+     */
+    protected static function sendOtpMail(string $email, string $name, string $otp): bool
     {
-        $job = static function () use ($email, $name, $otp): void {
-            try {
-                $recipient = new User([
-                    'name' => $name,
-                    'email' => $email,
-                ]);
+        if (config('mail.default') === 'log') {
+            Log::warning('OTP mail skipped: MAIL_MAILER is set to log', ['email' => $email]);
 
-                Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
-            } catch (Throwable $exception) {
-                report($exception);
-            }
-        };
-
-        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
-            $job();
-
-            return;
+            return false;
         }
 
-        dispatch($job)->afterResponse();
+        try {
+            $recipient = new User([
+                'name' => $name,
+                'email' => $email,
+            ]);
+
+            Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
+
+            Log::info('OTP verification email sent', ['email' => $email]);
+
+            return true;
+        } catch (Throwable $exception) {
+            report($exception);
+            Log::error('OTP verification email failed', [
+                'email' => $email,
+                'mailer' => config('mail.default'),
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     protected function resolvePendingRegistration(Request $request): ?array
@@ -421,7 +431,9 @@ class EmailOtpVerificationController extends Controller
             }
         }
 
-        self::queueOtpMail($email, $name, $otp);
+        if (! self::sendOtpMail($email, $name, $otp)) {
+            return back()->withErrors(['otp' => 'Could not send OTP email. Check MAIL_* settings on server or try again.']);
+        }
 
         return back()->with('status', 'OTP sent to your email.');
     }
