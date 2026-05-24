@@ -3,6 +3,9 @@ set -e
 
 cd /var/www
 
+mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+
 php artisan storage:link 2>/dev/null || true
 php artisan migrate --force --no-interaction 2>/dev/null || true
 php artisan view:clear 2>/dev/null || true

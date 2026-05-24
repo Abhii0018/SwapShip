@@ -25,7 +25,12 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 COPY --from=assets /app/public/build /var/www/public/build
 RUN test -f public/build/manifest.json
 
-RUN chmod -R 775 storage bootstrap/cache
+RUN mkdir -p storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
+ && chmod -R 775 storage bootstrap/cache
 
 COPY docker/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
