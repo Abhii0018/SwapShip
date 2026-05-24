@@ -6,7 +6,6 @@ use App\Mail\EmailVerificationOtpMail;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Symfony\Component\Process\Process;
 use Throwable;
 
 class OtpMailSender
@@ -28,30 +27,29 @@ class OtpMailSender
             return;
         }
 
-        if (! self::canSpawnBackgroundProcess()) {
+        if (! self::canRunDetachedCommand()) {
             self::send($email, $name, $otp);
 
             return;
         }
 
         try {
-            $process = new Process([
-                PHP_BINARY,
-                base_path('artisan'),
-                'mail:send-otp',
-                $email,
-                $name,
-                $otp,
-            ], base_path());
+            $command = sprintf(
+                '%s %s mail:send-otp %s %s %s > /dev/null 2>&1 &',
+                escapeshellarg(PHP_BINARY),
+                escapeshellarg(base_path('artisan')),
+                escapeshellarg($email),
+                escapeshellarg($name),
+                escapeshellarg($otp)
+            );
 
-            $process->setTimeout(null);
-            $process->disableOutput();
-            $process->start();
+            exec($command, $output, $exitCode);
 
-            Log::info('OTP mail background send started', [
-                'email' => $email,
-                'pid' => $process->getPid(),
-            ]);
+            if ($exitCode !== 0) {
+                throw new \RuntimeException('Failed to start OTP mail background process.');
+            }
+
+            Log::info('OTP mail background send started', ['email' => $email]);
         } catch (Throwable $exception) {
             report($exception);
             self::send($email, $name, $otp);
@@ -89,14 +87,14 @@ class OtpMailSender
         }
     }
 
-    protected static function canSpawnBackgroundProcess(): bool
+    protected static function canRunDetachedCommand(): bool
     {
-        if (! function_exists('proc_open')) {
+        if (! function_exists('exec')) {
             return false;
         }
 
         $disabled = array_filter(array_map('trim', explode(',', (string) ini_get('disable_functions'))));
 
-        return ! in_array('proc_open', $disabled, true);
+        return ! in_array('exec', $disabled, true);
     }
 }
