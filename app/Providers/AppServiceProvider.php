@@ -73,7 +73,7 @@ class AppServiceProvider extends ServiceProvider
             }
 
             try {
-                $this->composeNavigationNotifications($view, $user);
+                self::composeNavigationNotifications($view, $user);
             } catch (\Throwable $exception) {
                 report($exception);
                 $view->with('navNotificationCount', 0);
@@ -82,12 +82,12 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    protected function composeNavigationNotifications($view, $user): void
+    private static function composeNavigationNotifications($view, $user): void
     {
-            $cacheKey = 'nav_notifications:' . $user->id;
-            $ttl = 60; // 1 minute cache
+        $cacheKey = 'nav_notifications:'.$user->id;
+        $ttl = 60;
 
-            $cached = Cache::get($cacheKey);
+        $cached = Cache::get($cacheKey);
             if ($cached !== null) {
                 $view->with('navNotificationCount', $cached['count']);
                 $view->with('navNotificationItems', collect($cached['items']));

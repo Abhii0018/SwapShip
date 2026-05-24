@@ -10,7 +10,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentWebhookController;
 use Illuminate\Support\Facades\Route;
-use Throwable;
 
 Route::get('/healthz', fn () => response()->json([
     'ok' => true,
@@ -27,7 +26,7 @@ Route::get('/healthz/diag', function () {
             'ok' => true,
             'rendered_bytes' => strlen($html),
         ]);
-    } catch (Throwable $exception) {
+    } catch (\Throwable $exception) {
         return response()->json([
             'ok' => false,
             'error' => $exception->getMessage(),
