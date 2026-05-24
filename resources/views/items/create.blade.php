@@ -53,7 +53,13 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('items.store') }}" enctype="multipart/form-data" class="sell-form">
+        <form
+            method="POST"
+            action="{{ route('items.store') }}"
+            enctype="multipart/form-data"
+            class="sell-form"
+            @submit="if (!resolvedCategory) { $event.preventDefault(); categoryError = 'Please select a category (subcategory is optional).'; }"
+        >
             @csrf
             <section class="card sell-card" id="sell-product">
                 <div class="sell-section-head">
@@ -70,12 +76,16 @@
                         <small class="muted" x-show="titleHint" x-text="titleHint"></small>
                     </div>
 
+                    <input type="hidden" name="category" :value="resolvedCategory">
+                    <input type="hidden" name="parent_category" :value="selectedParent">
+
                     <div class="sell-field sell-field-full" id="category-fields">
-                        <label for="parent_category">Category</label>
+                        <label for="parent_category">Category <span class="muted">(required)</span></label>
                         <select
                             id="parent_category"
                             x-model="selectedParent"
-                            @change="updateSubcategories(); form.category = ''"
+                            @change="updateSubcategories(); form.category = ''; categoryError = ''"
+                            required
                         >
                             <option value="">Select category</option>
                             @foreach($parentCategories as $parent => $subs)
@@ -85,20 +95,21 @@
                     </div>
 
                     <div class="sell-field sell-field-full" x-show="selectedParent" x-transition x-cloak>
-                        <label for="category">Subcategory</label>
+                        <label for="category_sub">Subcategory <span class="muted">(optional)</span></label>
                         <select
-                            id="category"
-                            name="category"
+                            id="category_sub"
                             x-model="form.category"
-                            @change="form.category = $event.target.value"
+                            @change="form.category = $event.target.value; categoryError = ''"
                         >
-                            <option value="">Select subcategory</option>
+                            <option value="">Use main category only</option>
                             <template x-for="sub in subcategories" :key="sub">
                                 <option :value="sub" x-text="sub"></option>
                             </template>
                         </select>
-                        <small class="muted">Showing subcategories for "<span x-text="selectedParent"></span>"</small>
+                        <small class="muted">Listing will be saved as: <strong x-text="resolvedCategory || '—'"></strong></small>
                     </div>
+
+                    <p class="auth-error sell-field-full" x-show="categoryError" x-text="categoryError" x-cloak></p>
 
                     <div class="sell-field sell-field-full sell-callout">
                         <p class="sell-callout-label">Pro tip</p>
@@ -271,8 +282,9 @@
             reverseApi,
             maxImages: 3,
             openFor: null,
-            selectedParent: '',
+            selectedParent: @js(old('parent_category', '')),
             subcategories: [],
+            categoryError: '',
             locationSuggestions: [],
             mapStatus: 'Pin the exact area on map for better trust.',
             permissionHelp: '',
@@ -283,6 +295,15 @@
             draggingIndex: null,
             map: null,
             marker: null,
+            get resolvedCategory() {
+                const sub = (this.form.category || '').trim();
+                if (sub) {
+                    return sub;
+                }
+
+                return (this.selectedParent || '').trim();
+            },
+
             form: {
                 title: @js(old('title', '')),
                 category: @js(old('category', '')),
@@ -297,17 +318,34 @@
 
             init() {
                 this.loadDraft();
+                if (this.selectedParent) {
+                    this.updateSubcategories();
+                }
                 this.$watch('form', () => this.saveDraft());
                 this.$nextTick(() => {
                     this.initMap();
                     this.checkGeoPermission();
                     if (this.form.category) {
+                        let matched = false;
                         for (const [parent, subs] of Object.entries(this.parentCategories)) {
                             if (subs.includes(this.form.category)) {
                                 this.selectedParent = parent;
                                 this.subcategories = subs;
+                                matched = true;
                                 break;
                             }
+                            if (this.form.category === parent) {
+                                this.selectedParent = parent;
+                                this.subcategories = subs;
+                                this.form.category = '';
+                                matched = true;
+                                break;
+                            }
+                        }
+                        if (!matched && this.parentCategories[this.form.category]) {
+                            this.selectedParent = this.form.category;
+                            this.subcategories = this.parentCategories[this.form.category];
+                            this.form.category = '';
                         }
                     }
                 });
@@ -809,6 +847,7 @@
                 };
                 this.selectedParent = '';
                 this.subcategories = [];
+                this.categoryError = '';
                 this.locationSuggestions = [];
                 this.selectedImages = [];
                 this.$refs.imageInput.value = '';

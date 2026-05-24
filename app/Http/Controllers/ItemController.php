@@ -416,6 +416,10 @@ class ItemController extends Controller
                 ->with('error', 'Complete your profile before posting an item.');
         }
 
+        $request->merge([
+            'category' => $this->resolveListingCategory($request),
+        ]);
+
         $rules = [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -432,7 +436,9 @@ class ItemController extends Controller
             'bill' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ];
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'category.required' => 'Please select a category. Subcategory is optional.',
+        ]);
         unset($validated['images'], $validated['bill']);
         $validated['user_id'] = $request->user()->id;
         $validated['type'] = 'sell';
@@ -534,6 +540,10 @@ class ItemController extends Controller
         if ($this->resolveActorId($request) !== $item->user_id) {
             abort(403);
         }
+
+        $request->merge([
+            'category' => $this->resolveListingCategory($request),
+        ]);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -1007,5 +1017,23 @@ class ItemController extends Controller
                 Storage::disk('public')->delete($path);
             }
         }
+    }
+
+    /**
+     * Use subcategory when provided; otherwise fall back to parent category.
+     */
+    protected function resolveListingCategory(Request $request): string
+    {
+        $category = trim((string) $request->input('category', ''));
+        if ($category !== '') {
+            return $category;
+        }
+
+        $parent = trim((string) $request->input('parent_category', ''));
+        if ($parent !== '' && array_key_exists($parent, self::CATEGORIES)) {
+            return $parent;
+        }
+
+        return '';
     }
 }
