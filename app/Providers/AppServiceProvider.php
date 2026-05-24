@@ -72,6 +72,18 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
+            try {
+                $this->composeNavigationNotifications($view, $user);
+            } catch (\Throwable $exception) {
+                report($exception);
+                $view->with('navNotificationCount', 0);
+                $view->with('navNotificationItems', collect());
+            }
+        });
+    }
+
+    protected function composeNavigationNotifications($view, $user): void
+    {
             $cacheKey = 'nav_notifications:' . $user->id;
             $ttl = 60; // 1 minute cache
 
@@ -176,6 +188,5 @@ class AppServiceProvider extends ServiceProvider
                 'count' => (int) ($pendingRequestCount + $unreadMessageCount),
                 'items' => $notificationItems->toArray(),
             ], $ttl);
-        });
     }
 }

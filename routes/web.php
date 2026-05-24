@@ -15,6 +15,7 @@ Route::get('/healthz', fn () => response()->json([
     'ok' => true,
     'app' => config('app.name'),
     'time' => now()->toIso8601String(),
+    'build_manifest' => file_exists(public_path('build/manifest.json')),
 ]));
 
 Route::get('/', [ItemController::class, 'landing'])->name('home');

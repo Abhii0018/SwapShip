@@ -96,16 +96,22 @@ class ItemController extends Controller
 
     public function landing(): View
     {
-        $featuredItems = Item::with('images')
-            ->latest()
-            ->take(6)
-            ->get();
+        try {
+            $featuredItems = Item::with('images')
+                ->latest()
+                ->take(6)
+                ->get();
 
-        $stats = [
-            'users' => User::count(),
-            'items' => Item::count(),
-            'exchanges' => ExchangeRequest::count(),
-        ];
+            $stats = [
+                'users' => User::count(),
+                'items' => Item::count(),
+                'exchanges' => ExchangeRequest::count(),
+            ];
+        } catch (\Throwable $exception) {
+            report($exception);
+            $featuredItems = collect();
+            $stats = ['users' => 0, 'items' => 0, 'exchanges' => 0];
+        }
 
         return view('welcome', compact('featuredItems', 'stats'));
     }

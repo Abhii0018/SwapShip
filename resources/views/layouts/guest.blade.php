@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'SwapShip') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.vite-assets')
 </head>
 <body>
 <main class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;">

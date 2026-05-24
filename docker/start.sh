@@ -5,6 +5,7 @@ cd /var/www
 
 php artisan storage:link 2>/dev/null || true
 php artisan migrate --force --no-interaction 2>/dev/null || true
+php artisan view:clear 2>/dev/null || true
 php artisan optimize:clear 2>/dev/null || true
 
 php artisan queue:restart 2>/dev/null || true
