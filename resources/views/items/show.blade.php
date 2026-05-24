@@ -61,9 +61,6 @@
                 <span class="item-detail-chip">Age: {{ $item->item_age ?: 'Not specified' }}</span>
             </div>
 
-            @if($item->price)
-                <p class="item-detail-price">Price: ₹{{ number_format((float) $item->price, 2) }}</p>
-            @endif
             @if($item->bill_url)
                 <p><a class="btn" href="{{ $item->bill_url }}" target="_blank" rel="noopener">View bill</a></p>
             @endif
