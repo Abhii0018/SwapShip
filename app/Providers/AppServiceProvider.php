@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $appKey = (string) env('APP_KEY', '');
+        if ($appKey !== '' && ((str_starts_with($appKey, '"') && str_ends_with($appKey, '"')) || (str_starts_with($appKey, "'") && str_ends_with($appKey, "'")))) {
+            config(['app.key' => trim($appKey, "\"'")]);
+        }
+
         MailConfigurator::apply();
 
         // Production safety fallback: if DB-backed cache/session tables are missing,
