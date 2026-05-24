@@ -18,10 +18,18 @@ class OtpMailSender
         self::$lastError = null;
         MailConfigurator::apply();
 
+        if (MailConfigurator::isRenderHost() && ! MailConfigurator::usesApiMailer()) {
+            self::$lastError = 'Render blocks Gmail SMTP. Add SENDGRID_API_KEY on Render (free at sendgrid.com). Verify your Gmail as a Single Sender, then set MAIL_MAILER=sendgrid.';
+
+            Log::error('OTP mail skipped on Render without API mailer', ['email' => $email]);
+
+            return false;
+        }
+
         $mailer = (string) config('mail.default');
 
         if ($mailer === 'log') {
-            self::$lastError = 'MAIL_MAILER is "log" on the server — emails are not sent. On Render set MAIL_MAILER=smtp.';
+            self::$lastError = 'MAIL_MAILER is "log" — no real emails are sent. On Render set MAIL_MAILER=sendgrid and SENDGRID_API_KEY.';
 
             Log::warning('OTP mail skipped', ['email' => $email, 'reason' => self::$lastError]);
 
@@ -29,7 +37,7 @@ class OtpMailSender
         }
 
         if ($mailer === 'smtp' && ! self::smtpIsConfigured()) {
-            self::$lastError = 'MAIL_USERNAME or MAIL_PASSWORD is missing on Render. Use your Gmail address and a 16-character App Password (no spaces).';
+            self::$lastError = 'MAIL_USERNAME or MAIL_PASSWORD is missing. On Render use SendGrid instead (SENDGRID_API_KEY).';
 
             Log::error('OTP mail skipped', ['email' => $email, 'reason' => self::$lastError]);
 
@@ -44,17 +52,16 @@ class OtpMailSender
 
             Mail::to($email)->send(new EmailVerificationOtpMail($recipient, $otp));
 
-            Log::info('OTP verification email sent', ['email' => $email]);
+            Log::info('OTP verification email sent', ['email' => $email, 'mailer' => $mailer]);
 
             return true;
         } catch (Throwable $exception) {
             report($exception);
-            self::$lastError = self::humanizeSmtpError($exception->getMessage());
+            self::$lastError = self::humanizeError($exception->getMessage(), $mailer);
 
             Log::error('OTP verification email failed', [
                 'email' => $email,
                 'mailer' => $mailer,
-                'host' => config('mail.mailers.smtp.host'),
                 'error' => $exception->getMessage(),
             ]);
 
@@ -64,7 +71,7 @@ class OtpMailSender
 
     public static function lastErrorMessage(): string
     {
-        return self::$lastError ?? 'Email could not be sent. Check MAIL_* variables on Render.';
+        return self::$lastError ?? 'Email could not be sent.';
     }
 
     protected static function smtpIsConfigured(): bool
@@ -75,20 +82,24 @@ class OtpMailSender
         return $username !== '' && $password !== '';
     }
 
-    protected static function humanizeSmtpError(string $message): string
+    protected static function humanizeError(string $message, string $mailer): string
     {
         $lower = strtolower($message);
 
+        if (MailConfigurator::isRenderHost() && ($mailer === 'smtp' || str_contains($lower, 'connection'))) {
+            return 'Render blocks Gmail SMTP. Use SendGrid: add SENDGRID_API_KEY and MAIL_MAILER=sendgrid on Render (verify your Gmail as Single Sender at sendgrid.com).';
+        }
+
         if (str_contains($lower, 'username and password not accepted') || str_contains($lower, 'authentication failed')) {
-            return 'Gmail rejected the login. Use a Gmail App Password (not your normal password) in MAIL_PASSWORD on Render.';
+            return 'Email login rejected. On Render use SendGrid API key, not Gmail SMTP password.';
         }
 
-        if (str_contains($lower, 'connection could not be established') || str_contains($lower, 'connection timed out')) {
-            return 'Could not connect to Gmail SMTP. Set MAIL_HOST=smtp.gmail.com, MAIL_PORT=587, MAIL_ENCRYPTION=tls on Render.';
+        if (str_contains($lower, 'unauthorized') || str_contains($lower, '403') || str_contains($lower, '401')) {
+            return 'SendGrid API key is invalid. Create a new key at sendgrid.com with Mail Send permission.';
         }
 
-        if (strlen($message) > 180) {
-            return substr($message, 0, 177).'...';
+        if (strlen($message) > 200) {
+            return substr($message, 0, 197).'...';
         }
 
         return $message;

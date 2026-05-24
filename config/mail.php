@@ -14,7 +14,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', env('MAIL_HOST') ? 'smtp' : 'log'),
+    'default' => env('MAIL_MAILER', env('SENDGRID_API_KEY') ? 'sendgrid' : (env('MAIL_HOST') ? 'smtp' : 'log')),
 
     /*
     |--------------------------------------------------------------------------
@@ -46,7 +46,7 @@ return [
             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => (int) env('MAIL_TIMEOUT', 25),
+            'timeout' => (int) env('MAIL_TIMEOUT', 8),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST) ?: 'localhost'),
         ],
 
@@ -64,6 +64,11 @@ return [
 
         'resend' => [
             'transport' => 'resend',
+        ],
+
+        'sendgrid' => [
+            'transport' => 'sendgrid',
+            'key' => env('SENDGRID_API_KEY'),
         ],
 
         'sendmail' => [

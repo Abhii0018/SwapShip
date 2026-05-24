@@ -23,15 +23,19 @@ Artisan::command('mail:send-otp {email} {name} {otp}', function (string $email, 
 Artisan::command('mail:check-config', function () {
     \App\Support\MailConfigurator::apply();
 
+    $this->line('Hosted on Render: '.(\App\Support\MailConfigurator::isRenderHost() ? 'yes' : 'no'));
     $this->line('MAIL_MAILER: '.config('mail.default'));
-    $this->line('MAIL_HOST: '.config('mail.mailers.smtp.host'));
-    $this->line('MAIL_PORT: '.config('mail.mailers.smtp.port'));
-    $this->line('MAIL_USERNAME: '.(config('mail.mailers.smtp.username') ? 'set' : 'MISSING'));
-    $this->line('MAIL_PASSWORD: '.(config('mail.mailers.smtp.password') ? 'set' : 'MISSING'));
+    $this->line('SENDGRID_API_KEY: '.(env('SENDGRID_API_KEY') ? 'set' : 'MISSING'));
     $this->line('MAIL_FROM: '.config('mail.from.address'));
 
+    if (\App\Support\MailConfigurator::isRenderHost() && ! \App\Support\MailConfigurator::usesApiMailer()) {
+        $this->error('Render blocks Gmail SMTP. Add SENDGRID_API_KEY and MAIL_MAILER=sendgrid.');
+
+        return 1;
+    }
+
     if (config('mail.default') === 'log') {
-        $this->error('MAIL_MAILER is log — no real emails are sent. Set MAIL_MAILER=smtp on Render.');
+        $this->error('MAIL_MAILER is log — no real emails are sent.');
 
         return 1;
     }
@@ -39,7 +43,7 @@ Artisan::command('mail:check-config', function () {
     $this->info('Mail config looks usable.');
 
     return 0;
-})->purpose('Show whether SMTP mail env vars are configured');
+})->purpose('Show whether mail env vars are configured for Render');
 
 Artisan::command('images:migrate-to-cloudinary {--dry-run : Preview without saving DB changes}', function () {
     $cloudName = (string) config('cloudinary.cloud.cloud_name');
