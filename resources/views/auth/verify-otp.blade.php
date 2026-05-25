@@ -14,10 +14,10 @@
     @endif
 
     <div class="auth-head">
-        <h1>{{ session('admin_login_otp') ? 'Admin sign-in OTP' : 'Verify your email' }}</h1>
+        <h1>{{ session('admin_login_otp') ? 'Enter admin verification code' : 'Verify your email' }}</h1>
         <p>
             @if (session('admin_login_otp'))
-                Your password was accepted. Enter the 6-digit OTP sent to <strong>{{ $email }}</strong> to open the admin dashboard.
+                We sent a 6-digit verification code to <strong>{{ $email }}</strong>. Enter it below to open the admin dashboard.
             @else
                 Enter the 6-digit OTP sent to <strong>{{ $email }}</strong>.
                 Check spam if you do not see it within a minute.
@@ -28,7 +28,7 @@
     <form method="POST" action="{{ route('otp.verify.submit') }}" class="auth-form">
         @csrf
         <div class="auth-field">
-            <label for="otp" class="auth-label">OTP code</label>
+            <label for="otp" class="auth-label">{{ session('admin_login_otp') ? 'Verification code' : 'OTP code' }}</label>
             <input id="otp" class="auth-input" type="text" name="otp" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus>
             @error('otp')
                 <p class="auth-error">{{ $message }}</p>
@@ -38,7 +38,7 @@
             @enderror
         </div>
 
-        <button type="submit" class="btn btn-primary auth-submit-btn">Verify OTP</button>
+        <button type="submit" class="btn btn-primary auth-submit-btn">{{ session('admin_login_otp') ? 'Open admin dashboard' : 'Verify OTP' }}</button>
     </form>
 
     <div class="auth-footer-box" data-otp-resend data-cooldown="{{ $initialCooldown }}">

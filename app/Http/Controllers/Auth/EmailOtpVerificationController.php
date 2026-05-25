@@ -27,15 +27,23 @@ class EmailOtpVerificationController extends Controller
 
     public function show(Request $request): View|RedirectResponse
     {
+        $isAdminLoginOtp = (bool) $request->session()->get('admin_login_otp', false);
+
         if (Auth::check()) {
             /** @var User $authUser */
             $authUser = Auth::user();
-            if ($authUser->is_verified && $authUser->hasVerifiedEmail()) {
-                return redirect()->route('home');
+            $needsAdminOtp = AdminAccount::requiresLoginOtp($authUser);
+
+            if (! $needsAdminOtp && $authUser->is_verified && $authUser->hasVerifiedEmail()) {
+                return redirect()->to(AdminAccount::homeRouteFor($authUser));
             }
 
             Auth::logout();
             $request->session()->put('pending_otp_user_id', $authUser->id);
+            if ($needsAdminOtp) {
+                $request->session()->put('admin_login_otp', true);
+                $isAdminLoginOtp = true;
+            }
             if (! EmailVerificationOtp::query()->where('user_id', $authUser->id)->exists()) {
                 self::issueOtp($authUser);
             }
@@ -52,17 +60,18 @@ class EmailOtpVerificationController extends Controller
 
         $user = $this->pendingUser($request);
         if ($user) {
-            if ($user->hasVerifiedEmail() && $user->is_verified) {
+            if (AdminAccount::requiresLoginOtp($user)) {
+                $request->session()->put('admin_login_otp', true);
+                $isAdminLoginOtp = true;
+            }
+
+            if (! $isAdminLoginOtp && $user->hasVerifiedEmail() && $user->is_verified) {
                 $request->session()->forget('pending_otp_user_id');
 
                 return redirect()->route('login')->with('status', 'Account already verified. Please login.');
             }
 
             $record = EmailVerificationOtp::query()->where('user_id', $user->id)->first();
-
-            if (AdminAccount::requiresLoginOtp($user) && $request->session()->has('pending_otp_user_id')) {
-                $request->session()->put('admin_login_otp', true);
-            }
 
             return view('auth.verify-otp', [
                 'email' => $user->email,
