@@ -27,9 +27,12 @@
                 @endphp
                 <div class="shipment-quick-summary">
                     <span>Price: INR {{ number_format($quickPrice, 2) }}</span>
-                    @if($shipment->tracking_url)
-                        <a class="shipment-link" href="{{ $shipment->tracking_url }}" target="_blank" rel="noopener">Track</a>
-                    @endif
+                    <span class="shipment-track-links">
+                        <a class="shipment-link" href="{{ route('shipments.track', $shipment) }}">Track on map</a>
+                        @if($shipment->tracking_url)
+                            <a class="shipment-link" href="{{ $shipment->tracking_url }}" target="_blank" rel="noopener">Provider link</a>
+                        @endif
+                    </span>
                 </div>
                 <details class="shipment-main-details">
                     <summary>View details</summary>
@@ -357,6 +360,11 @@
     }
     .shipment-track-line {
         margin: 9px 0 0;
+    }
+    .shipment-track-links {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
     }
     .shipment-quick-summary {
         margin-top: 8px;

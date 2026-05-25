@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ShipmentTracked;
 use App\Models\Order;
-use App\Models\SmsAuditLog;
 use App\Models\Shipment;
 use App\Models\ShipmentEvent;
+use App\Models\SmsAuditLog;
 use App\Services\Orders\DealTermsService;
+use App\Services\Shipping\GeocodingService;
 use App\Services\Shipping\ShippingService;
-use Illuminate\Support\Facades\Hash;
+use App\Services\Shipping\TrackingPositionCalculator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use Throwable;
 
 class ShipmentController extends Controller
 {
@@ -64,6 +70,8 @@ class ShipmentController extends Controller
             $shipment->exchangeRequest->update(['status' => 'Completed']);
         }
 
+        $this->broadcastTrackingUpdate($shipment);
+
         return back()->with('success', 'Shipment status updated.');
     }
 
@@ -84,6 +92,7 @@ class ShipmentController extends Controller
         }
 
         $shippingService->schedulePickup($shipment);
+        $this->broadcastTrackingUpdate($shipment->fresh() ?? $shipment);
 
         return back()->with('success', 'Pickup scheduled successfully.');
     }
@@ -103,6 +112,8 @@ class ShipmentController extends Controller
             'occurred_at' => now()->toDateTimeString(),
             'source' => 'manual_simulation',
         ]);
+
+        $this->broadcastTrackingUpdate($shipment->fresh() ?? $shipment);
 
         return back()->with('success', 'Simulated shipment event processed.');
     }
@@ -234,7 +245,183 @@ class ShipmentController extends Controller
             'occurred_at' => now(),
         ]);
 
+        $this->broadcastTrackingUpdate($shipment);
+
         return back()->with('success', 'OTP verified. Delivery and settlement completed.');
+    }
+
+    public function track(Request $request, Shipment $shipment): View
+    {
+        $this->authorizeShipmentAccess($request, $shipment);
+
+        $shipment->loadMissing([
+            'exchangeRequest.sender',
+            'exchangeRequest.receiver',
+            'exchangeRequest.item',
+            'events' => fn ($q) => $q->latest('occurred_at'),
+            'order',
+        ]);
+
+        $trackingData = $this->buildTrackingData($shipment);
+
+        return view('shipments.track', [
+            'shipment' => $shipment,
+            'tracking' => $trackingData,
+            'pollIntervalSeconds' => max(3, (int) config('shipping.tracking.poll_interval_seconds', 8)),
+            'pusherKey' => (string) config('broadcasting.connections.pusher.key', ''),
+            'pusherCluster' => (string) config('broadcasting.connections.pusher.options.cluster', ''),
+        ]);
+    }
+
+    public function trackState(Request $request, Shipment $shipment): JsonResponse
+    {
+        $this->authorizeShipmentAccess($request, $shipment);
+
+        $shipment->loadMissing([
+            'exchangeRequest.sender',
+            'exchangeRequest.receiver',
+            'events' => fn ($q) => $q->latest('occurred_at')->limit(8),
+        ]);
+
+        $data = $this->buildTrackingData($shipment);
+        $data['events'] = $shipment->events->map(fn ($event) => [
+            'code' => (string) $event->event_code,
+            'label' => (string) $event->event_label,
+            'occurred_at' => $event->occurred_at?->toIso8601String(),
+        ])->values();
+
+        return response()->json($data);
+    }
+
+    /**
+     * Build the payload consumed by both the track view and the JSON state
+     * endpoint. Always returns a non-null array even if geocoding fails.
+     *
+     * @return array<string, mixed>
+     */
+    protected function buildTrackingData(Shipment $shipment): array
+    {
+        $exchange = $shipment->exchangeRequest;
+        $senderAddress = (string) ($shipment->sender_address ?: $exchange?->sender?->address ?? '');
+        $receiverAddress = (string) ($shipment->receiver_address ?: $exchange?->receiver?->address ?? '');
+
+        $meta = (array) ($shipment->meta ?? []);
+
+        $senderCoords = $this->coordsFromMeta($meta, 'sender');
+        $receiverCoords = $this->coordsFromMeta($meta, 'receiver');
+        $routePolyline = isset($meta['route_polyline']) && is_array($meta['route_polyline'])
+            ? $meta['route_polyline']
+            : null;
+
+        if (! $senderCoords || ! $receiverCoords || $routePolyline === null) {
+            $geocoder = app(GeocodingService::class);
+            $metaChanged = false;
+
+            if (! $senderCoords && $senderAddress !== '') {
+                $senderCoords = $geocoder->geocodeAddress($senderAddress);
+                if ($senderCoords) {
+                    $meta['sender_lat'] = $senderCoords['lat'];
+                    $meta['sender_lng'] = $senderCoords['lng'];
+                    $metaChanged = true;
+                }
+            }
+
+            if (! $receiverCoords && $receiverAddress !== '') {
+                $receiverCoords = $geocoder->geocodeAddress($receiverAddress);
+                if ($receiverCoords) {
+                    $meta['receiver_lat'] = $receiverCoords['lat'];
+                    $meta['receiver_lng'] = $receiverCoords['lng'];
+                    $metaChanged = true;
+                }
+            }
+
+            if ($routePolyline === null && $senderCoords && $receiverCoords) {
+                $route = $geocoder->getRoute($senderCoords, $receiverCoords);
+                if ($route) {
+                    $routePolyline = $route['polyline'];
+                    $meta['route_polyline'] = $route['polyline'];
+                    $meta['route_distance_m'] = $route['distance_m'];
+                    $meta['route_duration_s'] = $route['duration_s'];
+                    $metaChanged = true;
+                }
+            }
+
+            if ($metaChanged) {
+                try {
+                    $shipment->forceFill(['meta' => $meta])->save();
+                } catch (Throwable $exception) {
+                    Log::warning('Failed to persist shipment tracking meta', [
+                        'shipment_id' => $shipment->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        $position = app(TrackingPositionCalculator::class)
+            ->compute($shipment, $senderCoords, $receiverCoords, $routePolyline);
+
+        return [
+            'shipment_id' => (int) $shipment->id,
+            'awb_number' => (string) ($shipment->awb_number ?? ''),
+            'provider' => (string) ($shipment->provider ?? ''),
+            'status_code' => $position['status_code'],
+            'status_label' => $position['status_label'],
+            'status_display' => (string) ($shipment->status ?? $position['status_label']),
+            'progress' => $position['progress'],
+            'eta' => $position['eta'],
+            'sender' => $senderCoords ? [
+                'address' => $senderAddress,
+                'lat' => $senderCoords['lat'],
+                'lng' => $senderCoords['lng'],
+            ] : ['address' => $senderAddress, 'lat' => null, 'lng' => null],
+            'receiver' => $receiverCoords ? [
+                'address' => $receiverAddress,
+                'lat' => $receiverCoords['lat'],
+                'lng' => $receiverCoords['lng'],
+            ] : ['address' => $receiverAddress, 'lat' => null, 'lng' => null],
+            'current_position' => $position['position_lat'] !== null && $position['position_lng'] !== null ? [
+                'lat' => $position['position_lat'],
+                'lng' => $position['position_lng'],
+            ] : null,
+            'route_polyline' => $routePolyline,
+            'route_distance_km' => isset($meta['route_distance_m'])
+                ? round(((float) $meta['route_distance_m']) / 1000, 1)
+                : null,
+            'pickup_scheduled_at' => $shipment->pickup_scheduled_at?->toIso8601String(),
+            'estimated_delivery_at' => $shipment->estimated_delivery_at?->toIso8601String(),
+            'updated_at' => $shipment->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array{lat: float, lng: float}|null
+     */
+    protected function coordsFromMeta(array $meta, string $prefix): ?array
+    {
+        $lat = $meta[$prefix.'_lat'] ?? null;
+        $lng = $meta[$prefix.'_lng'] ?? null;
+        if (! is_numeric($lat) || ! is_numeric($lng)) {
+            return null;
+        }
+
+        return ['lat' => (float) $lat, 'lng' => (float) $lng];
+    }
+
+    /**
+     * Best-effort broadcast of a shipment status change. Pusher failures
+     * must never break the underlying flow that triggered them.
+     */
+    protected function broadcastTrackingUpdate(Shipment $shipment): void
+    {
+        try {
+            event(new ShipmentTracked($shipment));
+        } catch (Throwable $exception) {
+            Log::warning('Failed to broadcast ShipmentTracked event', [
+                'shipment_id' => $shipment->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     protected function authorizeShipmentAccess(Request $request, Shipment $shipment): void

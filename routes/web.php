@@ -106,6 +106,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/chat/{exchangeRequest}/block', [MessageController::class, 'block'])->name('chat.block');
 
     Route::get('/shipments', [ShipmentController::class, 'index'])->name('shipments.index');
+    Route::get('/shipments/{shipment}/track', [ShipmentController::class, 'track'])->name('shipments.track');
+    Route::get('/shipments/{shipment}/track/state', [ShipmentController::class, 'trackState'])->name('shipments.track.state');
     Route::patch('/shipments/{shipment}/status', [ShipmentController::class, 'updateStatus'])->name('shipments.update-status');
     Route::post('/shipments/{shipment}/schedule-pickup', [ShipmentController::class, 'schedulePickup'])->name('shipments.schedule-pickup');
     Route::post('/shipments/{shipment}/simulate-event', [ShipmentController::class, 'simulateEvent'])->name('shipments.simulate-event');
