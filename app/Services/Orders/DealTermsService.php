@@ -46,7 +46,7 @@ class DealTermsService
         $remainingAmount = max(0, round($totalAmount - $upfrontAmount, 2));
         $requiresSecondPayment = $data['payment_method'] === 'escrow' && $remainingAmount > 0;
 
-        return Order::query()->updateOrCreate(
+        $order = Order::query()->updateOrCreate(
             ['shipment_id' => $shipment->id],
             [
                 'buyer_id' => $exchange->sender_id,
@@ -77,6 +77,18 @@ class DealTermsService
                 'delivery_verified_at' => null,
             ]
         );
+
+        // For COD, the buyer has committed at order creation (no upfront stage).
+        // Mark the item sold immediately so other buyers can't request it.
+        if ($data['payment_method'] === 'cod' && $exchange->item && ! $exchange->item->sold_at) {
+            try {
+                $exchange->item->markSold();
+            } catch (\Throwable $e) {
+                // Non-fatal; explore page filtering will pick this up later if needed.
+            }
+        }
+
+        return $order;
     }
 
     public function estimatedTotalForExchange(ExchangeRequest $exchange, ?float $negotiated = null): array

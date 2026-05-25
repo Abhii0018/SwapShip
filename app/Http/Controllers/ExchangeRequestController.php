@@ -56,6 +56,11 @@ class ExchangeRequestController extends Controller
         $senderId = $user->id;
         abort_if($item->user_id === $senderId, 422, 'You cannot request your own item.');
 
+        if ($item->sold_at) {
+            return redirect()->route('items.show', $item)
+                ->with('error', 'This item has already been sold and is no longer available.');
+        }
+
         $hasActiveRequest = ExchangeRequest::query()
             ->where('sender_id', $senderId)
             ->where('item_id', $item->id)
@@ -91,6 +96,11 @@ class ExchangeRequestController extends Controller
         }
 
         abort_if($item->user_id === $user->id, 422, 'You cannot start chat on your own item.');
+
+        if ($item->sold_at) {
+            return redirect()->route('items.show', $item)
+                ->with('error', 'This item has already been sold and is no longer available.');
+        }
 
         $conversation = ExchangeRequest::query()
             ->where('item_id', $item->id)

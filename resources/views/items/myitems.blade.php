@@ -17,20 +17,32 @@
         @if($items->count() > 0)
             <section class="explore-listing">
                 @foreach($items as $item)
-                    <article class="card explore-item-card myitems-card">
+                    @php($isSold = (bool) $item->sold_at)
+                    <article class="card explore-item-card myitems-card {{ $isSold ? 'explore-item-card--sold' : '' }}">
                         <a href="{{ route('items.show', $item) }}" class="explore-image-wrap" aria-label="View details of {{ $item->title }}">
                             <img src="{{ $item->images->first()?->url ?? 'https://via.placeholder.com/600x450?text=SwapShip+Item' }}" alt="{{ $item->title }}" class="explore-item-image">
                             <div class="explore-image-glow" aria-hidden="true"></div>
+                            @if($isSold)
+                                <span class="explore-sold-ribbon" aria-label="Sold">SOLD</span>
+                                <span class="explore-sold-overlay" aria-hidden="true"></span>
+                            @endif
                         </a>
                         <div class="explore-item-content">
                             <div class="explore-item-top">
                                 <h3>{{ $item->title }}</h3>
-                                <span class="explore-type-pill">{{ ucfirst($item->type) }}</span>
+                                @if($isSold)
+                                    <span class="explore-type-pill explore-type-pill--sold">Sold</span>
+                                @else
+                                    <span class="explore-type-pill">{{ ucfirst($item->type) }}</span>
+                                @endif
                             </div>
                             <p class="muted">{{ ucfirst($item->condition) }} · {{ $item->location }}</p>
                             <div class="explore-meta-line">
                                 <span class="explore-meta-chip">{{ $item->category ?: 'General' }}</span>
                                 <span class="explore-meta-chip">Posted {{ optional($item->created_at)->diffForHumans() }}</span>
+                                @if($isSold)
+                                    <span class="explore-meta-chip explore-meta-chip--sold">Sold {{ optional($item->sold_at)->diffForHumans() }}</span>
+                                @endif
                             </div>
 
                             @if($item->price)

@@ -41,6 +41,12 @@
         <section class="card item-detail-content">
             <p class="item-detail-kicker">Item Details</p>
             <h1 class="item-detail-title">{{ $item->title }}</h1>
+            @if($item->sold_at)
+                <div class="item-detail-sold-banner" role="status">
+                    <span class="item-detail-sold-badge">SOLD</span>
+                    <span class="item-detail-sold-text">This item was sold {{ optional($item->sold_at)->diffForHumans() }} and is no longer available for purchase.</span>
+                </div>
+            @endif
             @if($item->price)
                 <p class="item-detail-price item-detail-price-top">₹{{ number_format((float) $item->price, 2) }}</p>
             @endif
@@ -69,13 +75,17 @@
                     @php($activeConversation = $existingConversation ?? null)
                     @if($activeConversation)
                         <a class="btn" href="{{ route('chat.index', $activeConversation) }}">Chat with Owner</a>
-                    @else
+                    @elseif(!$item->sold_at)
                         <form method="POST" action="{{ route('chat.start', $item) }}">
                             @csrf
                             <button class="btn" type="submit">Chat with Owner</button>
                         </form>
                     @endif
-                    <form method="POST" action="{{ route('exchanges.store', $item) }}">@csrf <button class="btn btn-primary">Request Exchange</button></form>
+                    @if($item->sold_at)
+                        <button class="btn btn-primary" type="button" disabled aria-disabled="true" title="This item has been sold">Sold out</button>
+                    @else
+                        <form method="POST" action="{{ route('exchanges.store', $item) }}">@csrf <button class="btn btn-primary">Request Exchange</button></form>
+                    @endif
                 </div>
             @else
                 <a class="btn" href="{{ route('items.edit', $item) }}">Edit Item</a>

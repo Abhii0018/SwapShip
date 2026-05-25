@@ -654,6 +654,23 @@ class PaymentController extends Controller
 
         if (! $alreadyAtThisStage) {
             $this->propagatePaymentStatusToExchange($order, $stage, $fullyPaid);
+            $this->markItemSoldForOrder($order);
+        }
+    }
+
+    private function markItemSoldForOrder(Order $order): void
+    {
+        try {
+            $order->loadMissing('shipment.exchangeRequest.item');
+            $item = $order->shipment?->exchangeRequest?->item;
+            if ($item && ! $item->sold_at) {
+                $item->markSold();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to mark item as sold after payment', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
