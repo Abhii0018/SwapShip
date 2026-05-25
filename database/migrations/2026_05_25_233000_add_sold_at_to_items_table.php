@@ -9,14 +9,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('items', function (Blueprint $table) {
-            $table->timestamp('sold_at')->nullable()->after('bill_url');
-            $table->index('sold_at');
-        });
+        if (! Schema::hasColumn('items', 'sold_at')) {
+            try {
+                Schema::table('items', function (Blueprint $table) {
+                    $table->timestamp('sold_at')->nullable()->after('bill_url');
+                });
+            } catch (\Throwable $e) {
+                // ignore: column may have been added concurrently
+            }
+        }
 
-        // Backfill: mark items sold when an existing order has committed payment.
-        // Escrow: upfront_paid_at is set.
-        // COD: an order exists (buyer committed to pay on delivery).
+        try {
+            Schema::table('items', function (Blueprint $table) {
+                $table->index('sold_at', 'items_sold_at_index');
+            });
+        } catch (\Throwable $e) {
+            // ignore: index may already exist
+        }
+
+        // Backfill is best effort. Wrapped widely so any partial schema state
+        // (e.g. missing related tables on a fresh install) does not break the
+        // migration step itself.
         try {
             DB::statement(<<<'SQL'
                 UPDATE items SET sold_at = sub.committed_at

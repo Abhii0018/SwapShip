@@ -510,41 +510,63 @@ class ItemController extends Controller
             return redirect()->route('login')->with('error', 'Please login to view your dashboard.');
         }
 
+        $emptyPaginator = function (string $pageName) use ($request) {
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, 12, 1,
+                ['path' => $request->url(), 'pageName' => $pageName]
+            );
+        };
+
+        $myItems = $emptyPaginator('items_page');
+        $myPurchases = $emptyPaginator('purchases_page');
+        $categories = collect();
+        $sort = $request->input('sort', 'latest');
+
         try {
             $myItems = Item::with('images')
                 ->where('user_id', $user->id)
                 ->latest()
                 ->paginate(12, ['*'], 'items_page');
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Dashboard items query failed', [
+            \Illuminate\Support\Facades\Log::error('Dashboard items query failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
             ]);
-            $myItems = new \Illuminate\Pagination\LengthAwarePaginator(
-                collect(), 0, 12, 1,
-                ['path' => $request->url(), 'pageName' => 'items_page']
-            );
         }
 
         try {
-            $myPurchases = \App\Models\Order::with('shipment.exchangeRequest.item.images')
+            $myPurchases = \App\Models\Order::with(['shipment.exchangeRequest.item.images'])
                 ->where('buyer_id', $user->id)
                 ->latest()
                 ->paginate(12, ['*'], 'purchases_page');
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Dashboard purchases query failed', [
+            \Illuminate\Support\Facades\Log::error('Dashboard purchases query failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
             ]);
-            $myPurchases = new \Illuminate\Pagination\LengthAwarePaginator(
-                collect(), 0, 12, 1,
-                ['path' => $request->url(), 'pageName' => 'purchases_page']
-            );
         }
-        $categories = Item::query()->select('category')->distinct()->orderBy('category')->pluck('category');
-        $sort = $request->input('sort', 'latest');
 
-        return view('items.my-dashboard', compact('myItems', 'myPurchases', 'categories', 'sort'));
+        try {
+            $categories = Item::query()->select('category')->distinct()->orderBy('category')->pluck('category');
+        } catch (\Throwable $e) {
+            // Non-fatal.
+        }
+
+        try {
+            return view('items.my-dashboard', compact('myItems', 'myPurchases', 'categories', 'sort'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Dashboard view render failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
+                'trace' => substr($e->getTraceAsString(), 0, 2000),
+            ]);
+            return view('items.my-dashboard-fallback', [
+                'errorMessage' => 'We had trouble loading parts of your dashboard. Please try again in a moment.',
+            ]);
+        }
     }
 
     public function edit(Item $item): View

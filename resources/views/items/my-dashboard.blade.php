@@ -45,10 +45,28 @@
                 @if($myItems->count() > 0)
                     <section class="explore-listing">
                         @foreach($myItems as $item)
-                            @php($isSold = (bool) $item->sold_at)
+                            @php
+                                try {
+                                    $isSold = isset($item->sold_at) ? (bool) $item->sold_at : false;
+                                    $itemTitle = (string) ($item->title ?? 'Untitled');
+                                    $itemCondition = ucfirst((string) ($item->condition ?? ''));
+                                    $itemLocation = (string) ($item->location ?? '');
+                                    $itemCategory = (string) ($item->category ?: 'General');
+                                    $itemType = ucfirst((string) ($item->type ?? 'sell'));
+                                    $imageUrl = optional(optional($item->images ?? null)->first())->url ?? 'https://via.placeholder.com/600x450?text=SwapShip+Item';
+                                    $itemPrice = $item->price ?? null;
+                                    $itemExchPref = $item->exchange_preference ?? null;
+                                    $itemId = (int) ($item->id ?? 0);
+                                } catch (\Throwable $e) {
+                                    $isSold = false; $itemTitle = 'Item'; $itemCondition = ''; $itemLocation = '';
+                                    $itemCategory = 'General'; $itemType = 'Sell';
+                                    $imageUrl = 'https://via.placeholder.com/600x450?text=SwapShip+Item';
+                                    $itemPrice = null; $itemExchPref = null; $itemId = 0;
+                                }
+                            @endphp
                             <article class="card explore-item-card my-dashboard-card {{ $isSold ? 'explore-item-card--sold' : '' }}">
-                                <a href="{{ route('items.show', $item) }}" class="explore-image-wrap" aria-label="View details of {{ $item->title }}">
-                                    <img src="{{ $item->images->first()?->url ?? 'https://via.placeholder.com/600x450?text=SwapShip+Item' }}" alt="{{ $item->title }}" class="explore-item-image">
+                                <a href="{{ route('items.show', $item) }}" class="explore-image-wrap" aria-label="View details of {{ $itemTitle }}">
+                                    <img src="{{ $imageUrl }}" alt="{{ $itemTitle }}" class="explore-item-image">
                                     <div class="explore-image-glow" aria-hidden="true"></div>
                                     @if($isSold)
                                         <span class="explore-sold-ribbon" aria-label="Sold">SOLD</span>
@@ -57,32 +75,32 @@
                                 </a>
                                 <div class="explore-item-content">
                                     <div class="explore-item-top">
-                                        <h3>{{ $item->title }}</h3>
+                                        <h3>{{ $itemTitle }}</h3>
                                         @if($isSold)
                                             <span class="explore-type-pill explore-type-pill--sold">Sold</span>
                                         @else
-                                            <span class="explore-type-pill">{{ ucfirst($item->type) }}</span>
+                                            <span class="explore-type-pill">{{ $itemType }}</span>
                                         @endif
                                     </div>
-                                    <p class="muted">{{ ucfirst($item->condition) }} · {{ $item->location }}</p>
+                                    <p class="muted">{{ $itemCondition }} · {{ $itemLocation }}</p>
                                     <div class="explore-meta-line">
-                                        <span class="explore-meta-chip">{{ $item->category ?: 'General' }}</span>
+                                        <span class="explore-meta-chip">{{ $itemCategory }}</span>
                                         <span class="explore-meta-chip">Posted {{ optional($item->created_at)->diffForHumans() }}</span>
                                         @if($isSold)
                                             <span class="explore-meta-chip explore-meta-chip--sold">Sold {{ optional($item->sold_at)->diffForHumans() }}</span>
                                         @endif
                                     </div>
 
-                                    @if($item->price)
-                                        <p class="explore-price">Price: ₹{{ number_format((float) $item->price, 2) }}</p>
+                                    @if($itemPrice !== null && $itemPrice !== '')
+                                        <p class="explore-price">Price: ₹{{ number_format((float) $itemPrice, 2) }}</p>
                                     @endif
 
-                                    <p class="explore-owner">{{ $item->exchange_preference ?? 'Open to exchanges' }}</p>
+                                    <p class="explore-owner">{{ $itemExchPref ?? 'Open to exchanges' }}</p>
 
                                     <div class="explore-item-actions my-dashboard-actions-group">
                                         <a class="btn" href="{{ route('items.show', $item) }}">View</a>
                                         <a class="btn" href="{{ route('items.edit', $item) }}">Edit</a>
-                                        <button class="btn btn-danger" @click="openDeleteModal({{ $item->id }}, '{{ addslashes($item->title) }}')" type="button">Delete</button>
+                                        <button class="btn btn-danger" @click="openDeleteModal({{ $itemId }}, '{{ addslashes($itemTitle) }}')" type="button">Delete</button>
                                     </div>
                                 </div>
                             </article>
@@ -116,18 +134,32 @@
                     <section class="purchases-listing">
                         @foreach($myPurchases as $order)
                             @php
-                                $item = $order->shipment?->exchangeRequest?->item;
-                                $orderStatus = (string) ($order->payment_status ?? 'pending');
-                                $statusClass = match($orderStatus) {
-                                    'paid', 'completed' => 'is-paid',
-                                    'failed', 'cancelled' => 'is-failed',
-                                    default => 'is-pending',
-                                };
+                                try {
+                                    $purchaseItem = optional(optional($order->shipment)->exchangeRequest)->item;
+                                    $orderStatus = (string) ($order->payment_status ?? 'pending');
+                                    $statusClass = match($orderStatus) {
+                                        'paid', 'completed' => 'is-paid',
+                                        'failed', 'cancelled' => 'is-failed',
+                                        default => 'is-pending',
+                                    };
+                                    $purchaseTitle = $purchaseItem?->title ?? ('Order #'.$order->id);
+                                    $purchaseImage = optional(optional($purchaseItem?->images)->first())->url ?? 'https://via.placeholder.com/150x150?text=Item';
+                                    $purchaseCondition = ucfirst((string) ($purchaseItem?->condition ?? ''));
+                                    $purchaseLocation = (string) ($purchaseItem?->location ?? '');
+                                    $purchaseCategory = (string) ($purchaseItem?->category ?? '');
+                                    $purchaseTotal = (float) ($order->total_amount ?? 0);
+                                } catch (\Throwable $e) {
+                                    $purchaseItem = null; $orderStatus = 'pending'; $statusClass = 'is-pending';
+                                    $purchaseTitle = 'Order #'.($order->id ?? '?');
+                                    $purchaseImage = 'https://via.placeholder.com/150x150?text=Item';
+                                    $purchaseCondition = ''; $purchaseLocation = ''; $purchaseCategory = '';
+                                    $purchaseTotal = 0;
+                                }
                             @endphp
                             <article class="card my-dashboard-purchase-card">
                                 <div class="purchase-header">
                                     <div class="purchase-info">
-                                        <h3>{{ $item?->title ?? 'Order #' . $order->id }}</h3>
+                                        <h3>{{ $purchaseTitle }}</h3>
                                         <p class="muted">Order ID: {{ $order->id }}</p>
                                     </div>
                                     <span class="purchase-status-badge {{ $statusClass }}">
@@ -136,30 +168,36 @@
                                 </div>
 
                                 <div class="purchase-details">
-                                    @if($item)
+                                    @if($purchaseItem)
                                         <div class="purchase-item">
-                                            <img src="{{ $item->images->first()?->url ?? 'https://via.placeholder.com/150x150?text=Item' }}" alt="{{ $item->title }}" class="purchase-item-image">
+                                            <img src="{{ $purchaseImage }}" alt="{{ $purchaseTitle }}" class="purchase-item-image">
                                             <div class="purchase-item-info">
-                                                <p><strong>{{ ucfirst($item->condition) }}</strong></p>
-                                                <p class="muted">{{ $item->location }}</p>
-                                                <p class="muted">Category: {{ $item->category }}</p>
+                                                @if($purchaseCondition !== '')
+                                                    <p><strong>{{ $purchaseCondition }}</strong></p>
+                                                @endif
+                                                @if($purchaseLocation !== '')
+                                                    <p class="muted">{{ $purchaseLocation }}</p>
+                                                @endif
+                                                @if($purchaseCategory !== '')
+                                                    <p class="muted">Category: {{ $purchaseCategory }}</p>
+                                                @endif
                                             </div>
                                         </div>
                                     @endif
 
                                     <div class="purchase-amount">
                                         <p class="muted">Amount Paid</p>
-                                        <p class="purchase-price">₹{{ number_format((float) $order->total_amount, 2) }}</p>
+                                        <p class="purchase-price">₹{{ number_format($purchaseTotal, 2) }}</p>
                                     </div>
 
                                     <p class="muted purchase-date">{{ optional($order->created_at)->format('d M Y, g:i A') }}</p>
                                 </div>
 
                                 <div class="purchase-actions">
-                                    @if($item)
-                                        <a class="btn" href="{{ route('items.show', $item) }}">View Item</a>
+                                    @if($purchaseItem)
+                                        <a class="btn" href="{{ route('items.show', $purchaseItem) }}">View Item</a>
                                     @endif
-                                    @if($order->shipment && in_array($orderStatus, ['completed']))
+                                    @if(optional($order)->shipment && in_array($orderStatus, ['paid', 'completed']))
                                         <a class="btn" href="{{ route('shipments.index') }}">Track Shipment</a>
                                     @endif
                                 </div>
