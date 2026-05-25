@@ -541,8 +541,10 @@ class ItemController extends Controller
                 ['path' => $request->url(), 'pageName' => 'purchases_page']
             );
         }
+        $categories = Item::query()->select('category')->distinct()->orderBy('category')->pluck('category');
+        $sort = $request->input('sort', 'latest');
 
-        return view('items.my-dashboard', compact('myItems', 'myPurchases'));
+        return view('items.my-dashboard', compact('myItems', 'myPurchases', 'categories', 'sort'));
     }
 
     public function edit(Item $item): View
