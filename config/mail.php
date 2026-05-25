@@ -14,7 +14,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', env('SENDGRID_API_KEY') ? 'sendgrid' : (env('MAIL_HOST') ? 'smtp' : 'log')),
+            'default' => env('MAIL_MAILER', 'log'),
 
     /*
     |--------------------------------------------------------------------------
