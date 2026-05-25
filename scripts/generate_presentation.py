@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""SwapShip — professional 14-slide academic presentation."""
+"""SwapShip — Final Project presentation (12 slides, premium black + cyan theme)."""
+
+from datetime import date
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -8,30 +10,37 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
 from pptx.oxml.xmlchemy import OxmlElement
 
-NAVY = RGBColor(30, 58, 95)
-NAVY_DARK = RGBColor(20, 40, 68)
-TEAL = RGBColor(13, 148, 136)
-TEAL_LIGHT = RGBColor(204, 251, 241)
-GOLD = RGBColor(180, 142, 45)
-BG_PAGE = RGBColor(245, 247, 250)
-BG_PANEL = RGBColor(255, 255, 255)
-TEXT = RGBColor(26, 35, 48)
-MUTED = RGBColor(90, 104, 120)
-LINE = RGBColor(210, 218, 228)
-WHITE = RGBColor(255, 255, 255)
+# Premium dark theme: black + cyan (+ subtle purple accent)
+BG = RGBColor(6, 10, 18)
+BG_CARD = RGBColor(14, 20, 32)
+BG_CARD_ALT = RGBColor(20, 28, 44)
+CYAN = RGBColor(0, 212, 255)
+CYAN_SOFT = RGBColor(120, 230, 255)
+PURPLE = RGBColor(124, 58, 237)
+GOLD = RGBColor(212, 175, 55)
+WHITE = RGBColor(248, 250, 252)
+MUTED = RGBColor(148, 163, 184)
+LINE = RGBColor(51, 65, 85)
 
 FONT_TITLE = "Segoe UI"
 FONT_BODY = "Segoe UI"
-
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
-OUT = "/Users/abhishekkumar/Desktop/SwapShip/SwapShip_Presentation.pptx"
-GITHUB = "https://github.com/Abhii0018/SwapShip.git"
+TOTAL = 12
+OUT = "/Users/abhishekkumar/Desktop/SwapShip/SwapShip_Final_Project.pptx"
+
+# --- Edit these for your submission ---
+STUDENT_NAME = "Abhishek Kumar"
+REG_NO = "12300520"
+COLLEGE = "Your College / University Name"
+DEPARTMENT = "Computer Science & Engineering"
+GUIDE = "Guide / Mentor Name"
+COURSE = "MVC Programming (INT221)"
+PRESENTATION_DATE = date.today().strftime("%d %B %Y")
 DEPLOYED = "https://swapship.onrender.com"
-DEMO = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 
-def fill_shape(shape, color, transparency=None):
+def fill(shape, color, transparency=None):
     shape.fill.solid()
     shape.fill.fore_color.rgb = color
     if transparency is not None:
@@ -39,12 +48,12 @@ def fill_shape(shape, color, transparency=None):
     shape.line.fill.background()
 
 
-def border(shape, color=LINE, pt=0.75):
+def stroke(shape, color=LINE, pt=0.75):
     shape.line.color.rgb = color
     shape.line.width = Pt(pt)
 
 
-def font(p, *, name=FONT_BODY, size=14, bold=False, color=TEXT, align=None):
+def set_font(p, *, name=FONT_BODY, size=14, bold=False, color=WHITE, align=None):
     p.font.name = name
     p.font.size = Pt(size)
     p.font.bold = bold
@@ -60,7 +69,7 @@ def transition(slide, kind="fade"):
             el.remove(c)
     t = OxmlElement("p:transition")
     t.set("spd", "med")
-    node = OxmlElement(f"p:{kind}" if kind in ("push", "wipe") else "p:fade")
+    node = OxmlElement("p:fade" if kind == "fade" else f"p:{kind}")
     if kind in ("push", "wipe"):
         node.set("dir", "l")
     t.append(node)
@@ -74,128 +83,312 @@ def notes(slide, text):
         pass
 
 
-def bg_professional(slide, style="content"):
-    base = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H)
-    fill_shape(base, BG_PAGE)
-    arc = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(10.8), Inches(-1.5), Inches(4), Inches(4))
-    fill_shape(arc, TEAL, 0.88)
-    header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, Inches(1.15))
-    fill_shape(header, NAVY if style != "title" else NAVY_DARK)
-    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.15), SLIDE_W, Inches(0.06))
-    fill_shape(strip, GOLD)
-    if style == "content":
-        panel = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.55), Inches(1.45), Inches(12.25), Inches(5.35))
-        fill_shape(panel, BG_PANEL)
-        border(panel, LINE, 1)
-        panel.adjustments[0] = 0.02
+def dark_bg(slide, accent=True):
+    fill(slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H), BG)
+    if accent:
+        glow = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(9.5), Inches(-2), Inches(5.5), Inches(5.5))
+        fill(glow, PURPLE, 0.82)
+        glow2 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-1.5), Inches(5), Inches(4), Inches(4))
+        fill(glow2, CYAN, 0.88)
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, Inches(1.05))
+    fill(bar, BG_CARD)
+    strip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.05), SLIDE_W, Inches(0.05))
+    fill(strip, CYAN)
 
 
 def footer(slide, n):
-    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(7.02), Inches(12.25), Pt(0.8))
-    fill_shape(bar, LINE)
-    l = slide.shapes.add_textbox(Inches(0.6), Inches(7.1), Inches(8), Inches(0.28))
-    font(l.text_frame.paragraphs[0], size=9, color=MUTED)
-    l.text_frame.paragraphs[0].text = "SwapShip  |  MVC Programing (INT221)  |  Abhishek Kumar  |  Reg. 12300520"
-    r = slide.shapes.add_textbox(Inches(12.2), Inches(7.1), Inches(0.6), Inches(0.28))
-    font(r.text_frame.paragraphs[0], size=9, color=MUTED, align=PP_ALIGN.RIGHT)
-    r.text_frame.paragraphs[0].text = f"{n} / 14"
+    tb = slide.shapes.add_textbox(Inches(0.55), Inches(7.08), Inches(10), Inches(0.3))
+    set_font(tb.text_frame.paragraphs[0], size=9, color=MUTED)
+    tb.text_frame.paragraphs[0].text = f"SwapShip  |  {COURSE}  |  {STUDENT_NAME}  |  {REG_NO}"
+    pg = slide.shapes.add_textbox(Inches(12.35), Inches(7.08), Inches(0.7), Inches(0.3))
+    set_font(pg.text_frame.paragraphs[0], size=9, color=MUTED, align=PP_ALIGN.RIGHT)
+    pg.text_frame.paragraphs[0].text = f"{n} / {TOTAL}"
 
 
-def slide_title(slide, title, subtitle=None):
-    tb = slide.shapes.add_textbox(Inches(0.7), Inches(0.22), Inches(12), Inches(0.85))
+def slide_heading(slide, title, subtitle=None):
+    tb = slide.shapes.add_textbox(Inches(0.6), Inches(0.18), Inches(12), Inches(0.8))
     tf = tb.text_frame
-    font(tf.paragraphs[0], name=FONT_TITLE, size=26, bold=True, color=WHITE)
+    set_font(tf.paragraphs[0], name=FONT_TITLE, size=28, bold=True, color=WHITE)
     tf.paragraphs[0].text = title
     if subtitle:
         p2 = tf.add_paragraph()
-        font(p2, size=12, color=TEAL_LIGHT)
+        set_font(p2, size=12, color=CYAN_SOFT)
         p2.text = subtitle
 
 
-def add_bullets(slide, items, x=Inches(0.85), y=Inches(2.0), w=Inches(11.8), size=13, spacing=10):
-    box = slide.shapes.add_textbox(x, y, w, Inches(4.8))
+def bullets(slide, items, x=Inches(0.75), y=Inches(1.55), w=Inches(12), size=14, color=WHITE, spacing=8):
+    box = slide.shapes.add_textbox(x, y, w, Inches(5.2))
     tf = box.text_frame
     tf.word_wrap = True
     for i, item in enumerate(items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.text = item
-        p.level = 0
-        font(p, size=size, color=TEXT)
+        p.text = f"▸  {item}"
+        set_font(p, size=size, color=color)
         p.space_after = Pt(spacing)
 
 
-def add_two_col(slide, left_title, left_items, right_title, right_items, y=Inches(1.95)):
-    lw, rw = Inches(5.75), Inches(5.75)
-    lx, rx = Inches(0.85), Inches(6.85)
-    for title, items, x, w in [(left_title, left_items, lx, lw), (right_title, right_items, rx, rw)]:
-        hd = slide.shapes.add_textbox(x, y, w, Inches(0.4))
-        font(hd.text_frame.paragraphs[0], size=14, bold=True, color=NAVY)
+def icon_card(slide, x, y, w, h, icon, title, desc, accent=CYAN):
+    card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
+    fill(card, BG_CARD)
+    stroke(card, accent, 1.2)
+    card.adjustments[0] = 0.08
+    circ = slide.shapes.add_shape(MSO_SHAPE.OVAL, x + Inches(0.2), y + Inches(0.18), Inches(0.55), Inches(0.55))
+    fill(circ, accent)
+    it = slide.shapes.add_textbox(x + Inches(0.2), y + Inches(0.22), Inches(0.55), Inches(0.45))
+    set_font(it.text_frame.paragraphs[0], size=14, bold=True, color=BG, align=PP_ALIGN.CENTER)
+    it.text_frame.paragraphs[0].text = icon
+    tt = slide.shapes.add_textbox(x + Inches(0.85), y + Inches(0.15), w - Inches(1), Inches(0.4))
+    set_font(tt.text_frame.paragraphs[0], size=13, bold=True, color=WHITE)
+    tt.text_frame.paragraphs[0].text = title
+    dt = slide.shapes.add_textbox(x + Inches(0.2), y + Inches(0.75), w - Inches(0.35), h - Inches(0.85))
+    tf = dt.text_frame
+    tf.word_wrap = True
+    set_font(tf.paragraphs[0], size=10, color=MUTED)
+    tf.paragraphs[0].text = desc
+
+
+def flow_steps(slide, steps, y=Inches(2.35), x0=Inches(0.75), total_w=Inches(11.8)):
+    n = len(steps)
+    gap = total_w / n
+    for i, (label, sub) in enumerate(steps):
+        x = x0 + i * gap
+        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.05), y, gap - Inches(0.12), Inches(1.35))
+        fill(box, BG_CARD_ALT if i % 2 else BG_CARD)
+        stroke(box, CYAN if i == 0 or i == n - 1 else LINE, 1)
+        box.adjustments[0] = 0.1
+        lb = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(0.12), gap - Inches(0.3), Inches(0.35))
+        set_font(lb.text_frame.paragraphs[0], size=11, bold=True, color=CYAN)
+        lb.text_frame.paragraphs[0].text = label
+        sb = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(0.5), gap - Inches(0.3), Inches(0.75))
+        tf = sb.text_frame
+        tf.word_wrap = True
+        set_font(tf.paragraphs[0], size=9, color=MUTED)
+        tf.paragraphs[0].text = sub
+        if i < n - 1:
+            arr = slide.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, x + gap - Inches(0.08), y + Inches(0.55), Inches(0.22), Inches(0.18))
+            fill(arr, GOLD)
+
+
+def content_panel(slide, x, y, w, h, title=None):
+    panel = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
+    fill(panel, BG_CARD)
+    stroke(panel, CYAN, 1)
+    panel.adjustments[0] = 0.04
+    if title:
+        hd = slide.shapes.add_textbox(x + Inches(0.18), y + Inches(0.12), w - Inches(0.3), Inches(0.38))
+        set_font(hd.text_frame.paragraphs[0], size=13, bold=True, color=CYAN)
         hd.text_frame.paragraphs[0].text = title
-        line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y + Inches(0.42), w, Pt(2))
-        fill_shape(line, TEAL)
-        add_bullets(slide, items, x=x, y=y + Inches(0.55), w=w, size=12, spacing=8)
+    return y + (Inches(0.55) if title else Inches(0.12))
 
 
-def add_table_rows(slide, headers, rows, y=Inches(2.05)):
-    cols = len(headers)
-    tw = Inches(11.6)
-    cw = tw / cols
-    x0 = Inches(0.85)
+def database_slide(slide):
+    """Two-column database slide — fits safely above footer."""
+    y0 = Inches(1.38)
+    lh = Inches(5.55)
+    lx, lw = Inches(0.65), Inches(6.15)
+    rx, rw = Inches(6.95), Inches(5.75)
+
+    content_panel(slide, lx, y0, lw, lh, "Core Tables")
+    tables = [
+        ("users", "Accounts, roles, verification"),
+        ("items", "Listings, geo, condition, price"),
+        ("item_images", "Cloudinary image URLs per item"),
+        ("exchange_requests", "Swap deals between two users"),
+        ("messages", "Chat per exchange (attachments)"),
+        ("shipments", "AWB, status, pickup & delivery"),
+        ("shipment_events", "Tracking timeline events"),
+        ("orders", "Razorpay payment stages"),
+    ]
+    ty = y0 + Inches(0.58)
+    for name, desc in tables:
+        row = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, lx + Inches(0.2), ty, lw - Inches(0.4), Inches(0.58))
+        fill(row, BG_CARD_ALT)
+        stroke(row, LINE, 0.4)
+        nt = slide.shapes.add_textbox(lx + Inches(0.32), ty + Inches(0.08), Inches(1.85), Inches(0.4))
+        set_font(nt.text_frame.paragraphs[0], size=10, bold=True, color=CYAN)
+        nt.text_frame.paragraphs[0].text = name
+        dt = slide.shapes.add_textbox(lx + Inches(2.15), ty + Inches(0.08), lw - Inches(2.4), Inches(0.42))
+        set_font(dt.text_frame.paragraphs[0], size=10, color=WHITE)
+        dt.text_frame.paragraphs[0].text = desc
+        ty += Inches(0.6)
+
+    content_panel(slide, rx, y0, rw, lh, "Relationships & Design")
+    rel_items = [
+        "One user → many items (1:N)",
+        "One item → many item_images (1:N)",
+        "Exchange request links requester & owner (N:1 each)",
+        "Messages belong to an exchange request (1:N)",
+        "One exchange → one shipment; many shipment_events (1:N)",
+        "Orders track payment linked to exchange workflow",
+        "Foreign keys + indexes for query performance",
+        "MySQL / PostgreSQL with Laravel Eloquent ORM",
+    ]
+    box = slide.shapes.add_textbox(rx + Inches(0.2), y0 + Inches(0.58), rw - Inches(0.35), lh - Inches(0.75))
+    tf = box.text_frame
+    tf.word_wrap = True
+    for i, item in enumerate(rel_items):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.text = f"▸  {item}"
+        set_font(p, size=11, color=WHITE)
+        p.space_after = Pt(7)
+
+
+def project_outcomes_slide(slide):
+    """Slide 10 — deployment & results (no screenshots)."""
+    y0 = Inches(1.38)
+    content_panel(slide, Inches(0.65), y0, Inches(5.9), Inches(5.55), "Project Outcomes")
+    outcomes = [
+        "Fully functional P2P exchange web app deployed on Render",
+        "End-to-end flow: register → list → exchange → chat → pay → ship",
+        "Email OTP verification + Google OAuth for secure onboarding",
+        "Real-time chat with Pusher; images via Cloudinary CDN",
+        "Razorpay split payments with webhook verification",
+        "Admin dashboard for users, items, orders & delivery OTP stats",
+    ]
+    ob = slide.shapes.add_textbox(Inches(0.85), y0 + Inches(0.58), Inches(5.5), Inches(4.8))
+    tf = ob.text_frame
+    tf.word_wrap = True
+    for i, item in enumerate(outcomes):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.text = f"▸  {item}"
+        set_font(p, size=12, color=WHITE)
+        p.space_after = Pt(10)
+
+    content_panel(slide, Inches(6.75), y0, Inches(5.95), Inches(5.55), "Deployment & Demo")
+    demo_items = [
+        ("Live App", DEPLOYED),
+        ("GitHub", "github.com/Abhii0018/SwapShip"),
+        ("Health Check", f"{DEPLOYED}/healthz"),
+        ("Stack", "Laravel 13 · Docker · Render"),
+    ]
+    dy = y0 + Inches(0.65)
+    for label, value in demo_items:
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.95), dy, Inches(5.55), Inches(0.95))
+        fill(card, BG_CARD_ALT)
+        stroke(card, PURPLE, 0.8)
+        card.adjustments[0] = 0.12
+        lt = slide.shapes.add_textbox(Inches(7.1), dy + Inches(0.1), Inches(1.4), Inches(0.35))
+        set_font(lt.text_frame.paragraphs[0], size=11, bold=True, color=CYAN)
+        lt.text_frame.paragraphs[0].text = label
+        vt = slide.shapes.add_textbox(Inches(7.1), dy + Inches(0.42), Inches(5.25), Inches(0.45))
+        set_font(vt.text_frame.paragraphs[0], size=10, color=MUTED)
+        vt.text_frame.paragraphs[0].text = value
+        dy += Inches(1.08)
+
+    flow = slide.shapes.add_textbox(Inches(6.95), dy + Inches(0.15), Inches(5.55), Inches(1.2))
+    tf = flow.text_frame
+    tf.word_wrap = True
+    set_font(tf.paragraphs[0], size=11, bold=True, color=CYAN)
+    tf.paragraphs[0].text = "Suggested Demo Flow"
+    steps = "Register → Add Item → Send Request → Chat → Pay → Track Shipment → Verify OTP"
+    p2 = tf.add_paragraph()
+    set_font(p2, size=10, color=WHITE)
+    p2.text = steps
+    p2.space_before = Pt(6)
+
+
+def challenge_table(slide):
+    headers = ["Challenge", "Solution"]
+    rows = [
+        ("Real-time communication", "Pusher + Laravel Echo for live chat"),
+        ("Image storage at scale", "Cloudinary CDN uploads"),
+        ("Secure authentication", "Laravel Breeze, email OTP, Google OAuth"),
+        ("OTP email on cloud hosting", "SendGrid HTTP API (Render-safe)"),
+        ("Shipment workflow complexity", "Structured shipment module + event timeline"),
+        ("Payment trust", "Razorpay escrow-style split payments"),
+    ]
+    y = Inches(1.75)
+    tw = Inches(11.9)
+    cw = [Inches(4.2), Inches(7.7)]
+    x0 = Inches(0.7)
     for c, h in enumerate(headers):
-        x = x0 + c * cw
-        cell = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, cw - Inches(0.05), Inches(0.45))
-        fill_shape(cell, NAVY)
-        tb = slide.shapes.add_textbox(x + Inches(0.08), y + Inches(0.06), cw - Inches(0.15), Inches(0.35))
-        font(tb.text_frame.paragraphs[0], size=11, bold=True, color=WHITE)
+        x = x0 + (cw[0] if c == 0 else cw[0])
+        cell = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x0 if c == 0 else x0 + cw[0], y, cw[c], Inches(0.42))
+        fill(cell, CYAN)
+        tb = slide.shapes.add_textbox((x0 if c == 0 else x0 + cw[0]) + Inches(0.1), y + Inches(0.07), cw[c], Inches(0.35))
+        set_font(tb.text_frame.paragraphs[0], size=11, bold=True, color=BG)
         tb.text_frame.paragraphs[0].text = h
     for r, row in enumerate(rows):
-        ry = y + Inches(0.5) + r * Inches(0.42)
-        tint = BG_PAGE if r % 2 == 0 else WHITE
+        ry = y + Inches(0.45) + r * Inches(0.72)
+        tint = BG_CARD if r % 2 == 0 else BG_CARD_ALT
         for c, val in enumerate(row):
-            x = x0 + c * cw
-            cell = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, ry, cw - Inches(0.05), Inches(0.4))
-            fill_shape(cell, tint)
-            border(cell, LINE, 0.5)
-            tb = slide.shapes.add_textbox(x + Inches(0.08), ry + Inches(0.05), cw - Inches(0.15), Inches(0.32))
-            font(tb.text_frame.paragraphs[0], size=10, color=TEXT)
-            tb.text_frame.paragraphs[0].text = str(val)
+            x = x0 + (0 if c == 0 else cw[0])
+            cell = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, ry, cw[c], Inches(0.68))
+            fill(cell, tint)
+            stroke(cell, LINE, 0.5)
+            tb = slide.shapes.add_textbox(x + Inches(0.12), ry + Inches(0.12), cw[c] - Inches(0.2), Inches(0.5))
+            set_font(tb.text_frame.paragraphs[0], size=10, color=WHITE)
+            tb.text_frame.paragraphs[0].text = val
 
 
-def flow_diagram(slide, steps, y=Inches(2.15)):
-    n = len(steps)
-    w = Inches(11.5) / n
-    x0 = Inches(0.9)
-    for i, (num, title, desc) in enumerate(steps):
-        x = x0 + i * w
-        box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.08), y, w - Inches(0.16), Inches(1.55))
-        fill_shape(box, TEAL_LIGHT if i % 2 == 0 else WHITE)
-        border(box, TEAL, 1)
-        box.adjustments[0] = 0.12
-        num_tb = slide.shapes.add_textbox(x + Inches(0.2), y + Inches(0.12), w - Inches(0.35), Inches(0.35))
-        font(num_tb.text_frame.paragraphs[0], size=16, bold=True, color=NAVY)
-        num_tb.text_frame.paragraphs[0].text = num
-        tit_tb = slide.shapes.add_textbox(x + Inches(0.2), y + Inches(0.48), w - Inches(0.35), Inches(0.45))
-        font(tit_tb.text_frame.paragraphs[0], size=11, bold=True, color=TEXT)
-        tit_tb.text_frame.paragraphs[0].text = title
-        desc_tb = slide.shapes.add_textbox(x + Inches(0.2), y + Inches(0.95), w - Inches(0.35), Inches(0.5))
-        tf = desc_tb.text_frame
+def tech_stack_grid(slide):
+    stacks = [
+        ("Frontend", ["Blade templates", "Tailwind CSS", "Alpine.js", "Vite"], "Responsive UI & fast builds"),
+        ("Backend", ["PHP 8.3", "Laravel 13", "MVC architecture"], "Secure routing, auth, ORM"),
+        ("Database", ["MySQL / PostgreSQL"], "Relational data for users, items, orders"),
+        ("Integrations", ["Pusher", "Cloudinary", "SendGrid", "Razorpay", "Docker"], "Chat, media, mail, payments, deploy"),
+    ]
+    x0, y0 = Inches(0.7), Inches(1.65)
+    w, h = Inches(2.9), Inches(2.35)
+    for i, (title, techs, why) in enumerate(stacks):
+        col, row = i % 2, i // 2
+        x = x0 + col * (w + Inches(0.35))
+        y = y0 + row * (h + Inches(0.25))
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
+        fill(card, BG_CARD)
+        stroke(card, PURPLE if i % 2 else CYAN, 1.2)
+        card.adjustments[0] = 0.06
+        hd = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(0.12), w, Inches(0.35))
+        set_font(hd.text_frame.paragraphs[0], size=13, bold=True, color=CYAN)
+        hd.text_frame.paragraphs[0].text = title
+        body = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(0.48), w - Inches(0.25), Inches(1.0))
+        tf = body.text_frame
         tf.word_wrap = True
-        font(tf.paragraphs[0], size=9, color=MUTED)
+        for j, t in enumerate(techs):
+            p = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
+            set_font(p, size=11, color=WHITE)
+            p.text = f"• {t}"
+            p.space_after = Pt(2)
+        why_b = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(1.55), w - Inches(0.25), Inches(0.65))
+        tf2 = why_b.text_frame
+        tf2.word_wrap = True
+        set_font(tf2.paragraphs[0], size=9, color=MUTED, bold=True)
+        tf2.paragraphs[0].text = f"Why: {why}"
+
+
+def feature_cards(slide):
+    features = [
+        ("Auth", "OTP + Google OAuth"),
+        ("Listings", "Upload & explore items"),
+        ("Chat", "Real-time messaging"),
+        ("Ship", "Tracking & delivery OTP"),
+        ("Pay", "Razorpay integration"),
+        ("Admin", "Dashboard & moderation"),
+    ]
+    x0, y0 = Inches(0.7), Inches(1.7)
+    w, h = Inches(1.95), Inches(1.15)
+    gap = Inches(0.22)
+    for i, (title, desc) in enumerate(features):
+        col, row = i % 3, i // 3
+        x = x0 + col * (w + gap)
+        y = y0 + row * (h + gap)
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
+        fill(card, BG_CARD_ALT)
+        stroke(card, CYAN, 0.8)
+        card.adjustments[0] = 0.1
+        t1 = slide.shapes.add_textbox(x + Inches(0.12), y + Inches(0.15), w, Inches(0.35))
+        set_font(t1.text_frame.paragraphs[0], size=12, bold=True, color=CYAN)
+        t1.text_frame.paragraphs[0].text = title
+        t2 = slide.shapes.add_textbox(x + Inches(0.12), y + Inches(0.5), w - Inches(0.2), Inches(0.55))
+        tf = t2.text_frame
+        tf.word_wrap = True
+        set_font(tf.paragraphs[0], size=9, color=MUTED)
         tf.paragraphs[0].text = desc
-        if i < n - 1:
-            arr = slide.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, x + w - Inches(0.12), y + Inches(0.62), Inches(0.28), Inches(0.2))
-            fill_shape(arr, GOLD)
-
-
-def link_button(slide, label, url, x, y, w=Inches(5.8)):
-    btn = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, Inches(0.58))
-    fill_shape(btn, TEAL)
-    btn.adjustments[0] = 0.2
-    tf = btn.text_frame
-    tf.text = label
-    font(tf.paragraphs[0], size=12, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    btn.click_action.hyperlink.address = url
+    extra = slide.shapes.add_textbox(Inches(0.7), Inches(4.35), Inches(11.9), Inches(0.5))
+    set_font(extra.text_frame.paragraphs[0], size=11, color=WHITE)
+    extra.text_frame.paragraphs[0].text = (
+        "+ Search & filters  ·  Saved searches  ·  Exchange requests  ·  Responsive dark UI  ·  Deployed on Render"
+    )
 
 
 def build():
@@ -204,372 +397,301 @@ def build():
     prs.slide_height = SLIDE_H
     blank = prs.slide_layouts[6]
 
-    # 1 TITLE
+    # ── Slide 1: Title ──
     s = prs.slides.add_slide(blank)
     transition(s, "fade")
-    fill_shape(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H), NAVY_DARK)
-    fill_shape(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(5.8), SLIDE_W, Inches(1.7)), NAVY)
-    fill_shape(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.12), SLIDE_W, Inches(0.07)), GOLD)
-    arc = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(9), Inches(0.5), Inches(5), Inches(5))
-    fill_shape(arc, TEAL, 0.75)
-    card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.9), Inches(1.6), Inches(11.5), Inches(4.0))
-    fill_shape(card, WHITE)
-    card.adjustments[0] = 0.03
-    tb = s.shapes.add_textbox(Inches(1.3), Inches(2.0), Inches(10.8), Inches(3.2))
+    fill(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H), BG)
+    fill(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(5.6), SLIDE_W, Inches(1.9),), BG_CARD)
+    glow = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(8.5), Inches(0.2), Inches(5.5), Inches(5.5))
+    fill(glow, PURPLE, 0.78)
+    glow2 = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-1), Inches(4.5), Inches(4), Inches(4))
+    fill(glow2, CYAN, 0.85)
+    line = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.35), SLIDE_W, Inches(0.06))
+    fill(line, CYAN)
+    # Logo mark
+    logo = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.85), Inches(1.65), Inches(1.1), Inches(1.1))
+    fill(logo, CYAN)
+    logo.adjustments[0] = 0.2
+    lt = s.shapes.add_textbox(Inches(0.85), Inches(1.82), Inches(1.1), Inches(0.7))
+    set_font(lt.text_frame.paragraphs[0], size=28, bold=True, color=BG, align=PP_ALIGN.CENTER)
+    lt.text_frame.paragraphs[0].text = "S"
+    tb = s.shapes.add_textbox(Inches(2.15), Inches(1.55), Inches(10.5), Inches(3.8))
     tf = tb.text_frame
-    font(tf.paragraphs[0], name=FONT_TITLE, size=54, bold=True, color=NAVY)
+    set_font(tf.paragraphs[0], name=FONT_TITLE, size=56, bold=True, color=WHITE)
     tf.paragraphs[0].text = "SwapShip"
-    p2 = tf.add_paragraph()
-    font(p2, size=22, color=TEAL)
-    p2.text = "Peer-to-Peer Marketplace for Buy, Sell & Exchange"
-    p2.space_before = Pt(10)
-    p3 = tf.add_paragraph()
-    font(p3, size=15, color=TEXT)
-    p3.text = "With Integrated Split Payments, Shipping & OTP Delivery"
-    p3.space_before = Pt(14)
-    p4 = tf.add_paragraph()
-    font(p4, size=13, color=MUTED)
-    p4.text = "Course: MVC Programing (INT221)  ·  Continuous Assessment 3"
-    p4.space_before = Pt(22)
-    p5 = tf.add_paragraph()
-    font(p5, size=13, bold=True, color=NAVY)
-    p5.text = "Abhishek Kumar  ·  Registration No. 12300520"
-    p5.space_before = Pt(6)
-    notes(s, "Introduce project name, your details, and one-line value proposition.")
+    p = tf.add_paragraph()
+    set_font(p, size=20, color=CYAN)
+    p.text = "Peer-to-Peer Item Exchange Platform"
+    p.space_before = Pt(8)
+    for text, sz, col in [
+        (f"Presented by: {STUDENT_NAME}  |  Reg. {REG_NO}", 14, MUTED),
+        (COLLEGE, 13, WHITE),
+        (f"Department: {DEPARTMENT}", 13, MUTED),
+        (f"Guide: {GUIDE}  |  {COURSE}", 13, MUTED),
+        (PRESENTATION_DATE, 12, CYAN_SOFT),
+    ]:
+        px = tf.add_paragraph()
+        set_font(px, size=sz, color=col)
+        px.text = text
+        px.space_before = Pt(10)
+    url = s.shapes.add_textbox(Inches(2.15), Inches(5.95), Inches(8), Inches(0.35))
+    set_font(url.text_frame.paragraphs[0], size=11, color=CYAN)
+    url.text_frame.paragraphs[0].text = DEPLOYED
+    notes(s, "Introduce yourself, college, guide, and project in 30 seconds.")
     footer(s, 1)
 
-    # 2 AGENDA
+    # ── Slide 2: Problem Statement ──
     s = prs.slides.add_slide(blank)
     transition(s, "push")
-    bg_professional(s)
-    slide_title(s, "Agenda", "Structure of this presentation")
-    add_table_rows(
+    dark_bg(s)
+    slide_heading(s, "Problem Statement", "Real-world challenges in item exchange")
+    bullets(
         s,
-        ["#", "Topic", "Key Points Covered"],
         [
-            ("01", "Introduction", "Project overview, objectives & scope"),
-            ("02", "Problem Statement", "Challenges in P2P trading today"),
-            ("03", "Proposed Solution", "SwapShip platform & value proposition"),
-            ("04", "Core Features", "Marketplace, exchange, chat, payments, shipping"),
-            ("05", "Technology Stack", "Laravel, database, integrations"),
-            ("06", "Architecture & Flow", "MVC design & transaction lifecycle"),
-            ("07", "Security & Users", "Roles, OTP, admin & trust layer"),
-            ("08", "Demo & Conclusion", "Live links, outcomes & Q&A"),
+            "People often have unused items but lack an easy platform to exchange them.",
+            "Existing platforms focus on buying/selling — not peer-to-peer swapping.",
+            "Users face trust issues: payment risk, fake listings, unverified strangers.",
+            "Communication and shipment tracking are fragmented across multiple apps.",
+            "No single system covers discovery → chat → payment → delivery proof.",
         ],
+        y=Inches(1.5),
+        size=13,
     )
-    notes(s, "Briefly walk through the agenda — sets expectations for evaluators.")
+    icon_card(s, Inches(0.75), Inches(5.15), Inches(3.6), Inches(1.55), "⇄", "Exchange Gap", "No dedicated swap-first marketplace", CYAN)
+    icon_card(s, Inches(4.55), Inches(5.15), Inches(3.6), Inches(1.55), "📦", "Shipping Pain", "Tracking & handover lack transparency", PURPLE)
+    icon_card(s, Inches(8.35), Inches(5.15), Inches(3.6), Inches(1.55), "💬", "Trust & Chat", "Negotiation happens outside secure channels", GOLD)
+    notes(s, "Explain why swap/trust/shipping matter to everyday users.")
     footer(s, 2)
 
-    # 3 INTRODUCTION
+    # ── Slide 3: Project Overview ──
     s = prs.slides.add_slide(blank)
     transition(s, "fade")
-    bg_professional(s)
-    slide_title(s, "Introduction", "Project overview & objectives")
-    add_two_col(
+    dark_bg(s)
+    slide_heading(s, "Project Overview", "What is SwapShip?")
+    bullets(
         s,
-        "What is SwapShip?",
         [
-            "Web-based P2P marketplace built with Laravel 13",
-            "Users buy, sell, or exchange items nationwide",
-            "Combines listings, chat, Razorpay payments & shipment tracking",
-            "OTP verification confirms successful delivery",
-            "Reduces need for separate apps for each step of a deal",
+            "SwapShip is a web-based item exchange platform for students and general users.",
+            "Users upload items, explore listings, send exchange requests, chat, pay, and track shipments.",
+            "Built as a full-stack Laravel MVC academic project with production deployment.",
         ],
-        "Project Objectives",
-        [
-            "Provide a unified platform for peer-to-peer commerce",
-            "Enable secure split-payment (escrow-style) transactions",
-            "Automate shipment creation and live status updates",
-            "Support real-time negotiation through in-app chat",
-            "Ensure verified users and admin oversight for safety",
-        ],
+        y=Inches(1.45),
+        w=Inches(5.9),
+        size=12,
     )
-    notes(s, "Explain SwapShip as your academic MVC project solving real marketplace problems.")
+    mod = s.shapes.add_textbox(Inches(0.75), Inches(3.05), Inches(5.9), Inches(2.2))
+    tf = mod.text_frame
+    set_font(tf.paragraphs[0], size=12, bold=True, color=CYAN)
+    tf.paragraphs[0].text = "Core Modules"
+    modules = [
+        "User Authentication (OTP + Google)",
+        "Item Management & Explore",
+        "Exchange Requests",
+        "Real-Time Messaging",
+        "Shipment Tracking",
+        "Payment System (Razorpay)",
+        "Admin Dashboard",
+    ]
+    for m in modules:
+        p = tf.add_paragraph()
+        set_font(p, size=11, color=MUTED)
+        p.text = f"• {m}"
+        p.space_after = Pt(2)
+    # Workflow diagram (right panel)
+    panel = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7.0), Inches(1.45), Inches(5.65), Inches(5.15))
+    fill(panel, BG_CARD)
+    stroke(panel, CYAN, 1)
+    panel.adjustments[0] = 0.04
+    pt = s.shapes.add_textbox(Inches(7.2), Inches(1.55), Inches(5.2), Inches(0.4))
+    set_font(pt.text_frame.paragraphs[0], size=12, bold=True, color=CYAN)
+    pt.text_frame.paragraphs[0].text = "Workflow"
+    flow_steps(
+        s,
+        [
+            ("User", "Register"),
+            ("Upload", "List item"),
+            ("Request", "Exchange"),
+            ("Ship", "Track"),
+            ("Done", "Complete"),
+        ],
+        y=Inches(2.15),
+        x0=Inches(7.15),
+        total_w=Inches(5.35),
+    )
+    notes(s, "One-liner: SwapShip = trusted swap marketplace end-to-end.")
     footer(s, 3)
 
-    # 4 PROBLEM
+    # ── Slide 4: Objectives ──
     s = prs.slides.add_slide(blank)
     transition(s, "wipe")
-    bg_professional(s)
-    slide_title(s, "Problem Statement", "Why existing P2P methods are insufficient")
-    add_bullets(
+    dark_bg(s)
+    slide_heading(s, "Objectives of the Project")
+    bullets(
         s,
         [
-            "Trust Deficit — Buyers fear paying full amount upfront; sellers fear shipping without guaranteed payment.",
-            "Fragmented Workflow — Listing on one app, chatting on another, payment via UPI, courier booked separately.",
-            "No Delivery Proof — Offline deals lack tracking, OTP handover, or dispute-ready transaction records.",
-            "Limited Verification — Open platforms allow fake listings and unverified counterparties.",
-            "Time & Cost Overhead — Multiple middlemen and manual coordination increase friction and fees.",
+            "Build a secure item exchange platform with verified users.",
+            "Enable smooth shipment management with status events & delivery OTP.",
+            "Provide real-time communication between buyers and sellers.",
+            "Create a responsive, modern UI for better user experience.",
+            "Maintain secure authentication, authorization, and admin oversight.",
+            "Reduce complexity of traditional multi-app exchange workflows.",
         ],
-        y=Inches(1.85),
-        size=13,
+        y=Inches(1.55),
+        size=14,
     )
-    call = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.85), Inches(5.55), Inches(11.6), Inches(0.75))
-    fill_shape(call, TEAL_LIGHT)
-    border(call, TEAL)
-    ct = s.shapes.add_textbox(Inches(1.05), Inches(5.72), Inches(11.2), Inches(0.45))
-    font(ct.text_frame.paragraphs[0], size=13, bold=True, color=NAVY)
-    ct.text_frame.paragraphs[0].text = "Need: One trusted platform covering discovery → negotiation → payment → shipping → confirmation"
-    notes(s, "Emphasize each pain point with a real-world example before presenting SwapShip.")
+    notes(s, "Read objectives clearly — maps to evaluation criteria.")
     footer(s, 4)
 
-    # 5 SOLUTION
+    # ── Slide 5: Technology Stack ──
     s = prs.slides.add_slide(blank)
     transition(s, "fade")
-    bg_professional(s)
-    slide_title(s, "Proposed Solution — SwapShip", "End-to-end peer-to-peer transaction platform")
-    add_bullets(
-        s,
-        [
-            "Single Laravel web application for the complete deal lifecycle",
-            "Marketplace with search, filters, geo-location & Cloudinary image uploads",
-            "Exchange requests with accept/reject, confirmation & deal-terms workflow",
-            "Razorpay split payments — partial upfront, remaining at doorstep delivery",
-            "Integrated shipments with AWB tracking, webhooks & event timeline",
-            "Email OTP registration, Google OAuth, delivery OTP & admin dashboard",
-        ],
-        y=Inches(1.85),
-        size=13,
-    )
-    notes(s, "Position SwapShip as the direct answer to every problem listed on the previous slide.")
+    dark_bg(s)
+    slide_heading(s, "Technology Stack", "Tools chosen and why")
+    tech_stack_grid(s)
+    notes(s, "Mention Laravel MVC, Tailwind responsiveness, Pusher real-time, Cloudinary images.")
     footer(s, 5)
 
-    # 6 FEATURES
+    # ── Slide 6: System Architecture / Workflow ──
     s = prs.slides.add_slide(blank)
     transition(s, "push")
-    bg_professional(s)
-    slide_title(s, "Core Features Overview", "Six integrated modules")
-    add_table_rows(
+    dark_bg(s)
+    slide_heading(s, "System Architecture & Workflow", "End-to-end transaction flow")
+    flow_steps(
         s,
-        ["Module", "Description", "Key Capability"],
         [
-            ("Marketplace", "Item listings & discovery", "Explore, filter, saved searches, my-items dashboard"),
-            ("Exchange", "Deal initiation & approval", "Request, accept, confirm, shipment gates"),
-            ("Chat", "Buyer-seller coordination", "Messages, attachments, typing, read status"),
-            ("Payments", "Razorpay integration", "Split pay, checkout, webhooks, order stages"),
-            ("Shipping", "Logistics & tracking", "Pickup, events, provider webhooks, status sync"),
-            ("Security", "Trust & administration", "OTP verify, Google login, admin panel"),
+            ("1", "Register / Login"),
+            ("2", "Upload Item"),
+            ("3", "Exchange Req."),
+            ("4", "Chat"),
+            ("5", "Payment"),
+            ("6", "Shipment"),
+            ("7", "Complete"),
         ],
-        y=Inches(1.82),
+        y=Inches(1.55),
     )
-    notes(s, "Overview slide — detail each module on following slides.")
+    arch = s.shapes.add_textbox(Inches(0.75), Inches(3.15), Inches(11.8), Inches(2.0))
+    tf = arch.text_frame
+    set_font(tf.paragraphs[0], size=12, bold=True, color=CYAN)
+    tf.paragraphs[0].text = "MVC Architecture"
+    layers = [
+        "View: Blade + Tailwind + Alpine.js  →  Controller: Item, Exchange, Message, Shipment, Payment, Admin",
+        "Model: User, Item, ExchangeRequest, Message, Shipment, Order  →  Services: Shipping, OTP Mail, Payments",
+    ]
+    for i, line in enumerate(layers):
+        p = tf.add_paragraph()
+        set_font(p, size=11, color=MUTED)
+        p.text = line
+        p.space_after = Pt(8)
+    notes(s, "Walk the flowchart left-to-right — this is a key evaluator slide.")
     footer(s, 6)
 
-    # 7 MARKETPLACE
+    # ── Slide 7: Database Design ──
     s = prs.slides.add_slide(blank)
-    transition(s, "wipe")
-    bg_professional(s)
-    slide_title(s, "Marketplace Module", "Item listing, search & discovery")
-    add_two_col(
-        s,
-        "User Features",
-        [
-            "Landing page with featured listings & marketplace intro",
-            "Explore page: search by title, category, location, condition, price",
-            "Create / edit / delete items with multiple images",
-            "My Items & My Dashboard for seller management",
-            "Saved searches for repeated filter combinations",
-        ],
-        "Technical Implementation",
-        [
-            "ItemController — landing, index, CRUD, suggestions",
-            "Cloudinary PHP SDK for image storage & delivery",
-            "OpenStreetMap Nominatim for location autocomplete",
-            "Geo fields on items for location-aware browsing",
-            "Rate-limited API endpoints for suggestions",
-        ],
-    )
-    notes(s, "Demo: show Explore page and Add Item if live app is available.")
+    transition(s, "fade")
+    dark_bg(s, accent=False)
+    slide_heading(s, "Database Design", "Schema & relationships")
+    database_slide(s)
+    notes(s, "Explain normalization and foreign keys briefly.")
     footer(s, 7)
 
-    # 8 EXCHANGE & CHAT
-    s = prs.slides.add_slide(blank)
-    transition(s, "fade")
-    bg_professional(s)
-    slide_title(s, "Exchange & Chat Module", "Deal workflow & real-time communication")
-    flow_diagram(
-        s,
-        [
-            ("1", "Browse", "Find item"),
-            ("2", "Request", "Send exchange"),
-            ("3", "Chat", "Negotiate price"),
-            ("4", "Accept", "Both confirm"),
-            ("5", "Terms", "Deal terms set"),
-            ("6", "Ship", "Create shipment"),
-        ],
-    )
-    add_bullets(
-        s,
-        [
-            "MessageController: attachments (image, PDF, audio), typing indicators, presence, block/report",
-            "Pusher broadcasting for real-time updates; unread notification summary endpoint",
-        ],
-        y=Inches(4.0),
-        size=12,
-    )
-    notes(s, "Walk through the 6-step flow diagram left to right.")
-    footer(s, 8)
-
-    # 9 PAYMENTS & SHIPPING
-    s = prs.slides.add_slide(blank)
-    transition(s, "push")
-    bg_professional(s)
-    slide_title(s, "Payments & Shipping", "Razorpay split pay + logistics + OTP delivery")
-    add_two_col(
-        s,
-        "Payment System (Razorpay)",
-        [
-            "Escrow-style split: upfront amount + balance at delivery",
-            "Checkout page, init-razorpay, pay & callback routes",
-            "Webhook signature verification before updating orders",
-            "Order tracks payment_status across all stages",
-            "Platform fee percentage configurable via environment",
-        ],
-        "Shipping & OTP",
-        [
-            "Shipment auto-created when exchange is accepted",
-            "Pickup scheduling, status patches & event log (AWB)",
-            "ShippingProviderInterface + webhook controller",
-            "Delivery OTP generate/verify before deal completion",
-            "Admin dashboard tracks OTP generated vs verified",
-        ],
-    )
-    notes(s, "Highlight trust: buyer never pays 100% upfront; seller gets proof of delivery.")
-    footer(s, 9)
-
-    # 10 TECH STACK
-    s = prs.slides.add_slide(blank)
-    transition(s, "fade")
-    bg_professional(s)
-    slide_title(s, "Technology Stack", "Tools & frameworks used")
-    add_table_rows(
-        s,
-        ["Layer", "Technology", "Purpose"],
-        [
-            ("Backend", "PHP 8.3, Laravel 13", "MVC app, routing, Eloquent ORM, auth"),
-            ("Frontend", "Blade, Tailwind CSS, Alpine.js, Vite", "Responsive UI & asset build"),
-            ("Database", "PostgreSQL / MySQL", "Users, items, exchanges, messages, orders"),
-            ("Payments", "Razorpay API", "Online checkout & webhook processing"),
-            ("Real-time", "Pusher PHP Server", "Chat updates & notifications"),
-            ("Media", "Cloudinary", "Item image upload & CDN delivery"),
-            ("Auth", "Laravel Breeze, Socialite", "Login, register, Google OAuth, email OTP"),
-            ("Deploy", "Render, Docker, Procfile", "Cloud hosting & health check endpoint"),
-        ],
-        y=Inches(1.78),
-    )
-    notes(s, "Show you understand full stack — backend, frontend, DB, third-party services.")
-    footer(s, 10)
-
-    # 11 ARCHITECTURE
+    # ── Slide 8: Key Features ──
     s = prs.slides.add_slide(blank)
     transition(s, "wipe")
-    bg_professional(s)
-    slide_title(s, "System Architecture", "MVC pattern & data flow")
-    add_two_col(
+    dark_bg(s)
+    slide_heading(s, "Key Features", "Major capabilities of SwapShip")
+    feature_cards(s)
+    notes(s, "Optionally show 1 live screenshot from swapship.onrender.com.")
+    footer(s, 8)
+
+    # ── Slide 9: Challenges & Solutions ──
+    s = prs.slides.add_slide(blank)
+    transition(s, "fade")
+    dark_bg(s)
+    slide_heading(s, "Challenges Faced & Solutions", "Problem-solving during development")
+    challenge_table(s)
+    notes(s, "Interviewers value this slide — show you debugged real issues.")
+    footer(s, 9)
+
+    # ── Slide 10: Project Outcomes & Deployment ──
+    s = prs.slides.add_slide(blank)
+    transition(s, "push")
+    dark_bg(s, accent=False)
+    slide_heading(s, "Project Outcomes & Deployment", "Results, live links & demo flow")
+    project_outcomes_slide(s)
+    notes(s, "Share live URL, walk through demo flow, mention Render + Docker deployment.")
+    footer(s, 10)
+
+    # ── Slide 11: Future Enhancements ──
+    s = prs.slides.add_slide(blank)
+    transition(s, "fade")
+    dark_bg(s)
+    slide_heading(s, "Future Enhancements", "Scalability & vision")
+    bullets(
         s,
-        "MVC Layers",
         [
-            "Model — User, Item, ExchangeRequest, Message, Shipment, Order, DeliveryOtp",
-            "View — Blade templates (welcome, explore, chat, shipments, checkout)",
-            "Controller — Item, ExchangeRequest, Message, Shipment, Payment, Admin",
-            "Services — ShippingProviderInterface, DealTermsService",
-            "Policies & Middleware — ShipmentPolicy, AdminMiddleware, EnsureUserIsVerified",
+            "AI-based item recommendations and smart matching.",
+            "Native mobile application (Android / iOS).",
+            "Advanced shipment tracking with courier API integrations.",
+            "Rating & review system for user reputation.",
+            "Video call / richer media support in chat.",
+            "Multi-language support for wider adoption.",
         ],
-        "Transaction Lifecycle",
-        [
-            "User registers → Email OTP / Google OAuth verification",
-            "Lists or browses items → Sends exchange request",
-            "Chat & deal terms → Accept & confirm exchange",
-            "Upfront Razorpay payment → Shipment created & tracked",
-            "Delivery OTP verified → Exchange marked complete",
-        ],
+        y=Inches(1.55),
+        size=14,
     )
-    notes(s, "Classic MVC slide for academic evaluators — connect to your course.")
+    notes(s, "Shows forward thinking without undermining current scope.")
     footer(s, 11)
 
-    # 12 SECURITY
+    # ── Slide 12: Conclusion & Q/A ──
     s = prs.slides.add_slide(blank)
     transition(s, "fade")
-    bg_professional(s)
-    slide_title(s, "Security & User Roles", "Access control & trust mechanisms")
-    add_table_rows(
-        s,
-        ["User Role", "Permissions", "Restrictions"],
-        [
-            ("Guest", "View landing & explore listings", "Cannot post or transact"),
-            ("Registered", "Post items, chat, send requests", "Must verify for sensitive actions"),
-            ("Verified", "Confirm exchanges, pay, ship", "Profile phone/address required"),
-            ("Admin", "Admin dashboard, order/OTP tracking", "Protected by admin middleware"),
-        ],
-        y=Inches(1.78),
-    )
-    add_bullets(
-        s,
-        ["Security: CSRF protection, rate limiting, Razorpay webhook signatures, session timeout, banned users"],
-        y=Inches(4.85),
-        size=12,
-    )
-    notes(s, "Four roles table + security bullets — shows thoughtful access design.")
-    footer(s, 12)
-
-    # 13 DEMO
-    s = prs.slides.add_slide(blank)
-    transition(s, "fade")
-    bg_professional(s)
-    slide_title(s, "Live Demo & Project Links", "Click during slideshow to open")
-    link_button(s, "Live Application — swapship.onrender.com", DEPLOYED, Inches(0.95), Inches(2.0))
-    link_button(s, "GitHub Source Code — Abhii0018/SwapShip", GITHUB, Inches(0.95), Inches(2.85))
-    link_button(s, "Demo Video Walkthrough", DEMO, Inches(0.95), Inches(3.7))
-    add_bullets(
-        s,
-        [
-            "Suggested demo flow: Register → Add item → Send request → Chat → Payment → Track shipment",
-            "Health endpoint: /healthz for deployment monitoring",
-            "Integrations: FedEx, DHL, Delhivery-style shipping (mock provider for dev)",
-        ],
-        x=Inches(7.0),
-        y=Inches(2.0),
-        w=Inches(5.5),
-        size=12,
-    )
-    notes(s, "Open live app in browser. Walk through one complete happy-path transaction.")
-    footer(s, 13)
-
-    # 14 CONCLUSION
-    s = prs.slides.add_slide(blank)
-    transition(s, "fade")
-    fill_shape(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H), NAVY_DARK)
-    fill_shape(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.1), SLIDE_W, Inches(0.06)), GOLD)
-    tb = s.shapes.add_textbox(Inches(1.0), Inches(2.0), Inches(11.3), Inches(3.5))
+    fill(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H), BG)
+    fill(s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, Inches(1.05), SLIDE_W, Inches(0.06)), CYAN)
+    # Corner accents only — keep center clear for readable text
+    glow_l = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-2), Inches(4.5), Inches(4.5), Inches(4.5))
+    fill(glow_l, CYAN, 0.82)
+    glow_r = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(10.5), Inches(-1.5), Inches(4.5), Inches(4.5))
+    fill(glow_r, PURPLE, 0.82)
+    card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.35), Inches(1.45), Inches(10.65), Inches(5.35))
+    fill(card, BG_CARD)
+    stroke(card, CYAN, 1.5)
+    card.adjustments[0] = 0.03
+    tb = s.shapes.add_textbox(Inches(1.65), Inches(1.75), Inches(10.05), Inches(4.85))
     tf = tb.text_frame
-    font(tf.paragraphs[0], name=FONT_TITLE, size=40, bold=True, color=WHITE)
+    tf.word_wrap = True
+    set_font(tf.paragraphs[0], name=FONT_TITLE, size=40, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
     tf.paragraphs[0].text = "Conclusion"
-    tf.paragraphs[0].alignment = PP_ALIGN.CENTER
     p2 = tf.add_paragraph()
-    font(p2, size=14, color=TEAL_LIGHT)
+    set_font(p2, size=14, color=CYAN_SOFT, align=PP_ALIGN.CENTER)
     p2.text = (
-        "SwapShip successfully integrates marketplace, chat, split payments, shipping & OTP "
-        "into one Laravel MVC application — reducing P2P trade friction and building user trust."
+        "SwapShip provides a modern, secure platform for item exchange with integrated "
+        "shipment management, real-time communication, and scalable Laravel MVC architecture."
     )
-    p2.alignment = PP_ALIGN.CENTER
     p2.space_before = Pt(16)
     p3 = tf.add_paragraph()
-    font(p3, size=13, color=WHITE)
-    p3.text = "Future scope: mobile app, dispute resolution, ratings & reviews, multi-language support"
-    p3.alignment = PP_ALIGN.CENTER
-    p3.space_before = Pt(20)
+    set_font(p3, size=12, color=WHITE, align=PP_ALIGN.CENTER)
+    p3.text = (
+        "Achieved: verified users · escrow payments · live tracking · admin oversight · cloud deployment"
+    )
+    p3.space_before = Pt(14)
     p4 = tf.add_paragraph()
-    font(p4, size=22, bold=True, color=GOLD)
-    p4.text = "Thank You — Questions?"
-    p4.alignment = PP_ALIGN.CENTER
-    p4.space_before = Pt(28)
+    set_font(p4, size=11, color=MUTED, align=PP_ALIGN.CENTER)
+    p4.text = "Laravel 13 · Tailwind · MySQL · Pusher · Cloudinary · SendGrid · Razorpay · Docker · Render"
+    p4.space_before = Pt(12)
     p5 = tf.add_paragraph()
-    font(p5, size=12, color=MUTED)
-    p5.text = "Abhishek Kumar  ·  INT221  ·  SwapShip"
-    p5.alignment = PP_ALIGN.CENTER
-    p5.space_before = Pt(12)
-    notes(s, "Summarize achievements, mention future work, invite questions confidently.")
-    footer(s, 14)
+    set_font(p5, size=26, bold=True, color=CYAN, align=PP_ALIGN.CENTER)
+    p5.text = "Thank You"
+    p5.space_before = Pt(22)
+    p6 = tf.add_paragraph()
+    set_font(p6, size=18, bold=True, color=GOLD, align=PP_ALIGN.CENTER)
+    p6.text = "Questions?"
+    p6.space_before = Pt(8)
+    p7 = tf.add_paragraph()
+    set_font(p7, size=11, color=MUTED, align=PP_ALIGN.CENTER)
+    p7.text = f"{STUDENT_NAME}  ·  {REG_NO}  ·  {COURSE}"
+    p7.space_before = Pt(14)
+    notes(s, "Summarize impact, invite questions confidently.")
+    footer(s, 12)
 
     prs.save(OUT)
     print(f"Saved: {OUT} ({len(prs.slides)} slides)")

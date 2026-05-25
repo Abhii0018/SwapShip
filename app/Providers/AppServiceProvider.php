@@ -60,13 +60,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $appUrl = (string) config('app.url');
-
-        // Cloudflare tunnel terminates TLS before forwarding to local HTTP.
-        // Force HTTPS, but keep host dynamic from the incoming request.
-        if ($appUrl !== '' && str_starts_with($appUrl, 'https://')) {
+        if ($this->app->environment('production')) {
             URL::forceScheme('https');
-            config(['session.secure' => true]);
         }
 
         View::composer('layouts.navigation', function ($view): void {
