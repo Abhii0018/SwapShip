@@ -117,7 +117,12 @@
                         @foreach($myPurchases as $order)
                             @php
                                 $item = $order->shipment?->exchangeRequest?->item;
-                                $orderStatus = $order->payment_status === 'completed' ? 'completed' : ($order->payment_status ?? 'pending');
+                                $orderStatus = (string) ($order->payment_status ?? 'pending');
+                                $statusClass = match($orderStatus) {
+                                    'paid', 'completed' => 'is-paid',
+                                    'failed', 'cancelled' => 'is-failed',
+                                    default => 'is-pending',
+                                };
                             @endphp
                             <article class="card my-dashboard-purchase-card">
                                 <div class="purchase-header">
@@ -125,7 +130,7 @@
                                         <h3>{{ $item?->title ?? 'Order #' . $order->id }}</h3>
                                         <p class="muted">Order ID: {{ $order->id }}</p>
                                     </div>
-                                    <span class="purchase-status-badge" :style="{ background: '{{ $orderStatus === 'completed' ? '#BFFF00' : '#666' }}', color: '{{ $orderStatus === 'completed' ? '#000' : '#fff' }}' }">
+                                    <span class="purchase-status-badge {{ $statusClass }}">
                                         {{ ucfirst($orderStatus) }}
                                     </span>
                                 </div>
@@ -491,9 +496,29 @@
         .purchase-status-badge {
             padding: 6px 12px;
             border-radius: 20px;
-            font-size: 12px;
+            font-family: var(--font-mono);
+            font-size: 10.5px;
             font-weight: 600;
+            letter-spacing: .14em;
+            text-transform: uppercase;
             white-space: nowrap;
+            border: 1px solid transparent;
+        }
+        .purchase-status-badge.is-paid {
+            background: linear-gradient(135deg, rgba(191,255,0,.2), rgba(191,255,0,.08));
+            border-color: rgba(191,255,0,.55);
+            color: #d8ff67;
+            box-shadow: 0 4px 14px rgba(191,255,0,.1);
+        }
+        .purchase-status-badge.is-pending {
+            background: linear-gradient(135deg, rgba(248,191,67,.18), rgba(248,191,67,.06));
+            border-color: rgba(248,191,67,.5);
+            color: #ffdc8a;
+        }
+        .purchase-status-badge.is-failed {
+            background: linear-gradient(135deg, rgba(239,68,68,.18), rgba(239,68,68,.06));
+            border-color: rgba(239,68,68,.5);
+            color: #fecaca;
         }
 
         .purchase-details {

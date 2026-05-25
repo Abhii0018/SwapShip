@@ -503,22 +503,44 @@ class ItemController extends Controller
         return view('items.myitems', compact('items'));
     }
 
-    public function myDashboard(Request $request): View
+    public function myDashboard(Request $request)
     {
         $user = $request->user();
         if (! $user) {
             return redirect()->route('login')->with('error', 'Please login to view your dashboard.');
         }
 
-        $myItems = Item::with('images')
-            ->where('user_id', $user->id)
-            ->latest()
-            ->paginate(12, ['*'], 'items_page');
+        try {
+            $myItems = Item::with('images')
+                ->where('user_id', $user->id)
+                ->latest()
+                ->paginate(12, ['*'], 'items_page');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Dashboard items query failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            $myItems = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, 12, 1,
+                ['path' => $request->url(), 'pageName' => 'items_page']
+            );
+        }
 
-        $myPurchases = \App\Models\Order::with('shipment.exchangeRequest.item.images')
-            ->where('buyer_id', $user->id)
-            ->latest()
-            ->paginate(12, ['*'], 'purchases_page');
+        try {
+            $myPurchases = \App\Models\Order::with('shipment.exchangeRequest.item.images')
+                ->where('buyer_id', $user->id)
+                ->latest()
+                ->paginate(12, ['*'], 'purchases_page');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Dashboard purchases query failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            $myPurchases = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, 12, 1,
+                ['path' => $request->url(), 'pageName' => 'purchases_page']
+            );
+        }
 
         return view('items.my-dashboard', compact('myItems', 'myPurchases'));
     }
