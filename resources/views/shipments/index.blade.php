@@ -102,33 +102,83 @@
                             </div>
                         </details>
                         @if($shipment->order->payment_method === 'escrow')
-                            <div class="shipment-state-row">
-                                <span class="shipment-state-pill">Upfront INR {{ number_format((float)($shipment->order->upfront_amount ?? $shipment->order->total_amount), 2) }}</span>
-                                <span class="shipment-state-pill">Remaining INR {{ number_format((float)($shipment->order->remaining_amount ?? 0), 2) }}</span>
+                            @php
+                                $upfrontAmount = (float) ($shipment->order->upfront_amount ?? $shipment->order->total_amount);
+                                $remainingAmount = (float) ($shipment->order->remaining_amount ?? 0);
+                            @endphp
+                            <div class="shipment-payment-grid">
+                                <div class="shipment-payment-cell {{ $upfrontPaid ? 'is-paid' : 'is-pending' }}">
+                                    <span class="shipment-payment-label">Upfront</span>
+                                    <strong>INR {{ number_format($upfrontAmount, 2) }}</strong>
+                                    <span class="shipment-payment-status">
+                                        @if($upfrontPaid)
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                            Paid
+                                        @else
+                                            Pending
+                                        @endif
+                                    </span>
+                                </div>
+                                <div class="shipment-payment-cell {{ !$remainingRequired ? 'is-na' : ($remainingPaid ? 'is-paid' : 'is-pending') }}">
+                                    <span class="shipment-payment-label">Remaining</span>
+                                    <strong>INR {{ number_format($remainingAmount, 2) }}</strong>
+                                    <span class="shipment-payment-status">
+                                        @if(!$remainingRequired)
+                                            Not required
+                                        @elseif($remainingPaid)
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                            Paid
+                                        @else
+                                            Pending
+                                        @endif
+                                    </span>
+                                </div>
                             </div>
-                            <p class="muted">Flow: {{ $pendingStageLabel }}</p>
                         @endif
                         <div class="shipment-state-row">
-                            <span class="shipment-state-pill">Payment: {{ $effectivePaymentStatus }}</span>
-                            @if($shipment->order->payment_method === 'escrow')
-                                <span class="shipment-state-pill">Upfront: @if($upfrontPaid) <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="vertical-align:middle;margin-right:6px"><path d="M20 6L9 17l-5-5" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> paid @else pending @endif</span>
-                                <span class="shipment-state-pill">Remaining: {{ $remainingStatusLabel }}</span>
-                            @endif
-                            <span class="shipment-state-pill">Settlement: {{ $shipment->order->settlement_status }}</span>
-                            <span class="shipment-state-pill">OTP: {{ $otpStatus }}</span>
+                            <span class="shipment-state-pill is-state-{{ str_replace(' ', '-', $effectivePaymentStatus) }}">Payment: {{ ucfirst($effectivePaymentStatus) }}</span>
+                            <span class="shipment-state-pill is-state-{{ $shipment->order->settlement_status === 'released' ? 'paid' : 'pending' }}">Settlement: {{ ucfirst($shipment->order->settlement_status) }}</span>
+                            <span class="shipment-state-pill is-state-{{ $otpStatus === 'Verified' ? 'paid' : ($otpStatus === 'Active' ? 'partially-paid' : 'pending') }}">OTP: {{ $otpStatus }}</span>
                         </div>
                         @if($isBuyer && $shipment->order->payment_method === 'escrow' && (!$upfrontPaid || ($remainingRequired && !$remainingPaid)))
-                            <div class="shipment-pay-alert">
-                                <strong>{{ !$upfrontPaid ? 'Pay to continue shipping' : 'Pay to unlock rider handover' }}</strong>
-                            </div>
-                            <p style="margin-top:8px;">
+                            <div class="shipment-action-banner is-pay">
+                                <div class="shipment-action-banner-body">
+                                    <strong>{{ !$upfrontPaid ? 'Pay to start shipping' : 'Pay to unlock rider handover' }}</strong>
+                                    <p>
+                                        @if(!$upfrontPaid)
+                                            Pay INR {{ number_format($upfrontAmount, 2) }} upfront to authorize pickup.
+                                        @else
+                                            Pay the remaining INR {{ number_format($remainingAmount, 2) }} so the rider can hand over the package.
+                                        @endif
+                                    </p>
+                                </div>
                                 <a class="btn btn-primary shipment-pay-btn" href="{{ route('payments.checkout', $shipment->order) }}">
-                                    Pay
+                                    Pay now
                                 </a>
-                            </p>
-                        @elseif($isSeller && $shipment->order->payment_method === 'escrow' && (!$upfrontPaid || ($remainingRequired && !$remainingPaid)))
-                            <p class="muted" style="margin-top:6px;">{{ $upfrontPaid ? 'Buyer has paid the upfront amount.' : 'Awaiting buyer upfront payment.' }}</p>
-                            <p class="shipment-lock-note" style="margin-top:6px;">Pay action appears only in buyer account.</p>
+                            </div>
+                        @elseif($isSeller && $shipment->order->payment_method === 'escrow')
+                            @if(!$upfrontPaid)
+                                <div class="shipment-action-banner is-await">
+                                    <div class="shipment-action-banner-body">
+                                        <strong>Awaiting buyer upfront payment</strong>
+                                        <p>Pickup will unlock after the buyer pays INR {{ number_format($upfrontAmount, 2) }}.</p>
+                                    </div>
+                                </div>
+                            @elseif($remainingRequired && !$remainingPaid)
+                                <div class="shipment-action-banner is-success">
+                                    <div class="shipment-action-banner-body">
+                                        <strong>Upfront received from buyer</strong>
+                                        <p>INR {{ number_format($upfrontAmount, 2) }} held in escrow. Doorstep amount of INR {{ number_format($remainingAmount, 2) }} will be collected on delivery.</p>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="shipment-action-banner is-success">
+                                    <div class="shipment-action-banner-body">
+                                        <strong>All buyer payments received</strong>
+                                        <p>Funds will release after OTP verification at delivery.</p>
+                                    </div>
+                                </div>
+                            @endif
                         @endif
                         @if($isBuyer)
                             <div class="buyer-otp-card">
@@ -503,6 +553,118 @@
         color: rgba(255,255,255,.85);
         background: rgba(255,255,255,.04);
     }
+    .shipment-state-pill.is-state-paid {
+        background: rgba(34,197,94,.14);
+        border-color: rgba(34,197,94,.5);
+        color: #bbf7d0;
+    }
+    .shipment-state-pill.is-state-pending {
+        background: rgba(250,204,21,.12);
+        border-color: rgba(250,204,21,.45);
+        color: #fde68a;
+    }
+    .shipment-state-pill.is-state-partially-paid {
+        background: rgba(56,189,248,.12);
+        border-color: rgba(56,189,248,.45);
+        color: #bae6fd;
+    }
+    .shipment-payment-grid {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .shipment-payment-cell {
+        position: relative;
+        padding: 10px 12px;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 12px;
+        background: rgba(255,255,255,.04);
+        display: grid;
+        gap: 4px;
+    }
+    .shipment-payment-cell::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: rgba(255,255,255,.2);
+    }
+    .shipment-payment-cell.is-paid {
+        background: linear-gradient(165deg, rgba(34,197,94,.16), rgba(34,197,94,.06));
+        border-color: rgba(34,197,94,.5);
+    }
+    .shipment-payment-cell.is-paid::before { background: #22c55e; }
+    .shipment-payment-cell.is-paid .shipment-payment-status { color: #bbf7d0; }
+    .shipment-payment-cell.is-pending {
+        background: linear-gradient(165deg, rgba(250,204,21,.12), rgba(250,204,21,.04));
+        border-color: rgba(250,204,21,.42);
+    }
+    .shipment-payment-cell.is-pending::before { background: #facc15; }
+    .shipment-payment-cell.is-pending .shipment-payment-status { color: #fde68a; }
+    .shipment-payment-cell.is-na {
+        opacity: .65;
+    }
+    .shipment-payment-cell.is-na::before { background: rgba(255,255,255,.3); }
+    .shipment-payment-label {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.62);
+        font-weight: 700;
+    }
+    .shipment-payment-cell strong {
+        font-size: 15px;
+        font-weight: 700;
+        color: rgba(245,255,220,.96);
+        font-variant-numeric: tabular-nums;
+    }
+    .shipment-payment-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .03em;
+    }
+    .shipment-action-banner {
+        margin-top: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        border: 1px solid transparent;
+    }
+    .shipment-action-banner-body { flex: 1 1 220px; min-width: 0; }
+    .shipment-action-banner strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    .shipment-action-banner p { margin: 0; font-size: 13px; line-height: 1.4; }
+    .shipment-action-banner.is-pay {
+        background: linear-gradient(165deg, rgba(239,68,68,.22), rgba(239,68,68,.08));
+        border-color: rgba(239,68,68,.55);
+        color: #fecaca;
+    }
+    .shipment-action-banner.is-pay strong { color: #ffe2e2; }
+    .shipment-action-banner.is-pay p { color: #fda4af; }
+    .shipment-action-banner.is-success {
+        background: linear-gradient(165deg, rgba(34,197,94,.2), rgba(34,197,94,.06));
+        border-color: rgba(34,197,94,.55);
+        color: #bbf7d0;
+    }
+    .shipment-action-banner.is-success strong { color: #dcfce7; }
+    .shipment-action-banner.is-success p { color: #bbf7d0; }
+    .shipment-action-banner.is-await {
+        background: linear-gradient(165deg, rgba(250,204,21,.18), rgba(250,204,21,.05));
+        border-color: rgba(250,204,21,.5);
+        color: #fde68a;
+    }
+    .shipment-action-banner.is-await strong { color: #fef9c3; }
+    .shipment-action-banner.is-await p { color: #fde68a; }
     .shipment-pay-alert {
         margin-top: 8px;
         border: 1px solid rgba(255,107,107,.55);
@@ -514,6 +676,7 @@
     }
     .shipment-pay-btn {
         min-height: 42px;
+        padding: 0 18px;
         border-radius: 11px;
         min-width: 110px;
         display: inline-flex;
@@ -521,6 +684,7 @@
         justify-content: center;
         font-weight: 700;
         letter-spacing: .02em;
+        white-space: nowrap;
     }
     .shipment-lock-note {
         margin: 8px 0 0;
@@ -698,6 +862,50 @@
         }
         .buyer-otp-card {
             padding: 9px;
+        }
+        .shipment-quick-summary {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+        }
+        .shipment-quick-summary .shipment-link {
+            text-align: center;
+            padding: 8px 12px;
+            background: rgba(191,255,0,.1);
+            border: 1px solid rgba(191,255,0,.35);
+            border-radius: 8px;
+            font-weight: 700;
+        }
+        .shipment-action-banner {
+            padding: 12px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        .shipment-action-banner .shipment-pay-btn {
+            width: 100%;
+            min-height: 44px;
+        }
+        .shipment-state-row {
+            gap: 5px;
+        }
+        .shipment-state-pill {
+            font-size: 12px;
+            padding: 5px 9px;
+        }
+        .shipment-payment-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 400px) {
+        .shipment-card {
+            padding: 9px;
+        }
+        .shipment-head h3 {
+            font-size: 1rem;
+        }
+        .shipment-payment-cell strong {
+            font-size: 14px;
         }
     }
 </style>
