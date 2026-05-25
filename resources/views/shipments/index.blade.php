@@ -27,12 +27,7 @@
                 @endphp
                 <div class="shipment-quick-summary">
                     <span>Price: INR {{ number_format($quickPrice, 2) }}</span>
-                    <span class="shipment-track-links">
-                        <a class="shipment-link" href="{{ route('shipments.track', $shipment) }}">Track on map</a>
-                        @if($shipment->tracking_url)
-                            <a class="shipment-link" href="{{ $shipment->tracking_url }}" target="_blank" rel="noopener">Provider link</a>
-                        @endif
-                    </span>
+                    <a class="shipment-link" href="{{ route('shipments.track', $shipment) }}">Track on map</a>
                 </div>
                 <details class="shipment-main-details">
                     <summary>View details</summary>
@@ -47,9 +42,6 @@
                         <strong>{{ $shipment->awb_number ?? 'Pending' }}</strong>
                     </div>
                 </div>
-                @if($shipment->tracking_url)
-                    <p class="shipment-track-line"><a class="shipment-link" href="{{ $shipment->tracking_url }}" target="_blank" rel="noopener">Track shipment</a></p>
-                @endif
                 @if($shipment->order)
                     @php
                         $latestOtp = $shipment->order->deliveryOtps->sortByDesc('created_at')->first();

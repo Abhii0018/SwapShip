@@ -9,17 +9,17 @@
         <span class="track-awb">AWB: {{ $tracking['awb_number'] ?: 'Pending' }}</span>
     </div>
 
-    <section class="card track-shell">
+    <section class="track-shell">
         <header class="track-header">
-            <div>
-                <p class="track-kicker">Live tracking</p>
+            <div class="track-header-left">
+                <p class="track-kicker"><span class="track-live-dot"></span>Live tracking</p>
                 <h2>{{ $shipment->exchangeRequest->item->title ?? 'Shipment' }}</h2>
-                <p class="track-sub muted" id="track-status-label">
-                    Status: <strong data-status-label>{{ $tracking['status_display'] }}</strong>
-                </p>
+                <div class="track-sub">
+                    <span class="track-status-badge" data-status-badge data-status-code="{{ $tracking['status_code'] }}">{{ $tracking['status_display'] }}</span>
+                </div>
             </div>
             <div class="track-eta">
-                <span class="muted">ETA</span>
+                <span>ETA</span>
                 <strong id="track-eta-value" data-eta-iso="{{ $tracking['eta'] }}">
                     {{ $tracking['eta'] ? \Carbon\Carbon::parse($tracking['eta'])->diffForHumans() : 'TBD' }}
                 </strong>
@@ -61,6 +61,10 @@
         </div>
 
         <div class="track-map-wrap" data-map-wrap>
+            <button type="button" class="track-fs-exit" data-action="exit-fullscreen" aria-label="Exit fullscreen" title="Exit fullscreen">
+                <span aria-hidden="true">&larr;</span>
+                <span>Back</span>
+            </button>
             <div id="track-map" class="track-map" role="region" aria-label="Shipment route map"></div>
             @if(empty($tracking['sender']['lat']) || empty($tracking['receiver']['lat']))
                 <div class="track-map-note" id="track-map-note">
@@ -71,8 +75,12 @@
 
         <div class="track-stats" id="track-stats">
             <div class="track-stat">
+                <span>Total distance</span>
+                <strong id="track-total-dist">—</strong>
+            </div>
+            <div class="track-stat">
                 <span>Distance remaining</span>
-                <strong id="track-dist">{{ $tracking['route_distance_km'] !== null ? $tracking['route_distance_km'].' km' : '—' }}</strong>
+                <strong id="track-dist">—</strong>
             </div>
             <div class="track-stat">
                 <span>Average speed</span>
@@ -105,10 +113,10 @@
                 @forelse($shipment->events->take(8) as $event)
                     <li>
                         <strong>{{ $event->event_label }}</strong>
-                        <span class="muted">{{ optional($event->occurred_at)->diffForHumans() }}</span>
+                        <span class="track-time-muted">{{ optional($event->occurred_at)->diffForHumans() }}</span>
                     </li>
                 @empty
-                    <li class="muted">No events yet. Updates will appear here as the courier progresses.</li>
+                    <li class="track-empty">No events yet. Updates will appear here as the courier progresses.</li>
                 @endforelse
             </ul>
         </div>
@@ -136,6 +144,7 @@
             cancelled:        { min: 0.00, max: 0.00 },
         };
         const STEP_ORDER = { order_placed: 0, pickup_scheduled: 0, picked_up: 1, in_transit: 2, out_for_delivery: 3, delivered: 4 };
+        const SHIPPED_STATUSES = ['picked_up', 'in_transit', 'out_for_delivery'];
 
         let map = null;
         let senderMarker = null;
@@ -149,7 +158,6 @@
         let polylineTotal = 0;
         let state = null;
         let lastStatusCode = null;
-        let lastFetchAt = Date.now();
         let myLatLng = null;
         let courierAnimFrom = null;
         let courierAnimTo = null;
@@ -261,7 +269,7 @@
         }
 
         function courierIcon(rotationDeg) {
-            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="#0b0d12"><path d="M3 17V7a2 2 0 0 1 2-2h10v4h3l4 4v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3zm14-5h4l-3-3h-1v3z"/></svg>';
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="#ffffff"><path d="M3 17V7a2 2 0 0 1 2-2h10v4h3l4 4v5h-2a2 2 0 1 1-4 0H9a2 2 0 1 1-4 0H3zm14-5h4l-3-3h-1v3z"/></svg>';
             return L.divIcon({
                 className: 'courier-pin',
                 html: '<div class="courier-pin-inner" style="transform: rotate(' + (rotationDeg || 0) + 'deg);">' + svg + '</div>',
@@ -296,18 +304,23 @@
             map = L.map('track-map', { zoomControl: true, scrollWheelZoom: false, attributionControl: true })
                 .setView([s.sender.lat, s.sender.lng], 6);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19,
                 subdomains: 'abcd',
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
             }).addTo(map);
 
-            senderMarker = L.marker([s.sender.lat, s.sender.lng], { icon: endpointIcon('#22d3ee', 'A'), title: 'Pickup' })
-                .addTo(map).bindPopup('Pickup<br><small>' + escapeHtml(s.sender.address || '') + '</small>');
-            receiverMarker = L.marker([s.receiver.lat, s.receiver.lng], { icon: endpointIcon('#bfff00', 'B'), title: 'Delivery' })
-                .addTo(map).bindPopup('Delivery<br><small>' + escapeHtml(s.receiver.address || '') + '</small>');
+            senderMarker = L.marker([s.sender.lat, s.sender.lng], { icon: endpointIcon('#0ea5e9', 'A'), title: 'Pickup' })
+                .addTo(map).bindPopup('<strong>Pickup</strong><br><small>' + escapeHtml(s.sender.address || '') + '</small>');
+            receiverMarker = L.marker([s.receiver.lat, s.receiver.lng], { icon: endpointIcon('#22c55e', 'B'), title: 'Delivery' })
+                .addTo(map).bindPopup('<strong>Delivery</strong><br><small>' + escapeHtml(s.receiver.address || '') + '</small>');
 
-            map.fitBounds(L.latLngBounds([[s.sender.lat, s.sender.lng], [s.receiver.lat, s.receiver.lng]]), { padding: [40, 40] });
+            const sameSpot = Math.abs(s.sender.lat - s.receiver.lat) < 0.0005 && Math.abs(s.sender.lng - s.receiver.lng) < 0.0005;
+            if (sameSpot) {
+                map.setView([s.sender.lat, s.sender.lng], 14);
+            } else {
+                map.fitBounds(L.latLngBounds([[s.sender.lat, s.sender.lng], [s.receiver.lat, s.receiver.lng]]), { padding: [50, 50] });
+            }
 
             const note = document.getElementById('track-map-note');
             if (note) note.style.display = 'none';
@@ -330,13 +343,13 @@
             const isStraight = !(state && state.route_polyline && state.route_polyline.length > 1);
 
             if (!traveledLine) {
-                traveledLine = L.polyline(beforeLatLngs, { color: '#bfff00', weight: 5, opacity: 0.95 }).addTo(map);
+                traveledLine = L.polyline(beforeLatLngs, { color: '#16a34a', weight: 5, opacity: 0.9 }).addTo(map);
             } else {
                 traveledLine.setLatLngs(beforeLatLngs);
             }
             if (!remainingLine) {
                 remainingLine = L.polyline(afterLatLngs, {
-                    color: '#5b6071',
+                    color: '#94a3b8',
                     weight: 4,
                     opacity: 0.85,
                     dashArray: isStraight ? '8 12' : '6 10',
@@ -392,8 +405,9 @@
         }
 
         function formatDistance(meters) {
-            if (meters >= 1000) return (meters / 1000).toFixed(meters >= 10000 ? 0 : 1) + ' km away';
-            return Math.round(meters) + ' m away';
+            if (meters < 1) return '0 m';
+            if (meters >= 1000) return (meters / 1000).toFixed(meters >= 10000 ? 0 : 1) + ' km';
+            return Math.round(meters) + ' m';
         }
 
         function updateCountdownLabel() {
@@ -401,15 +415,24 @@
             const etaIso = state.estimated_delivery_at;
             const el = document.getElementById('track-countdown');
             const etaEl = document.getElementById('track-eta-value');
+            if (state.status_code === 'delivered') {
+                if (el) el.textContent = 'Delivered';
+                if (etaEl) etaEl.textContent = 'Delivered';
+                return;
+            }
+            if (!SHIPPED_STATUSES.includes(state.status_code)) {
+                if (el) el.textContent = 'Awaiting pickup';
+                if (etaEl && etaIso) etaEl.textContent = 'after pickup';
+                return;
+            }
             if (!etaIso) {
                 if (el) el.textContent = '—';
                 return;
             }
             const diff = Date.parse(etaIso) - Date.now();
             if (diff <= 0) {
-                const text = state.status_code === 'delivered' ? 'Delivered' : 'Arriving any moment';
-                if (el) el.textContent = text;
-                if (etaEl) etaEl.textContent = text;
+                if (el) el.textContent = 'Arriving any moment';
+                if (etaEl) etaEl.textContent = 'Arriving any moment';
                 return;
             }
             const totalSec = Math.floor(diff / 1000);
@@ -424,7 +447,6 @@
         function tick() {
             if (!state) return;
             const now = Date.now();
-            const livePrev = state._liveProgress ?? state.progress ?? 0;
             const liveProgress = progressFromTime(state, now);
             state._liveProgress = liveProgress;
 
@@ -438,17 +460,37 @@
             startCourierAnimation(pt.lat, pt.lng, pt.bearing);
             drawTrails(pt);
 
+            const totalEl = document.getElementById('track-total-dist');
             const distEl = document.getElementById('track-dist');
-            if (distEl) {
-                const remainingMeters = polylineTotal * (1 - liveProgress);
-                distEl.textContent = formatDistance(remainingMeters).replace(' away', '');
-            }
             const speedEl = document.getElementById('track-speed');
-            if (speedEl && state.estimated_delivery_at && state.pickup_scheduled_at) {
-                const totalH = (Date.parse(state.estimated_delivery_at) - Date.parse(state.pickup_scheduled_at)) / 3600000;
-                if (totalH > 0) {
-                    const speed = (polylineTotal / 1000) / totalH;
-                    speedEl.textContent = speed.toFixed(0) + ' km/h avg';
+
+            const totalMeters = polylineTotal;
+            if (totalEl) totalEl.textContent = totalMeters > 0 ? formatDistance(totalMeters) : 'Same location';
+
+            if (distEl) {
+                if (state.status_code === 'delivered') {
+                    distEl.textContent = 'Delivered';
+                } else if (!SHIPPED_STATUSES.includes(state.status_code)) {
+                    distEl.textContent = totalMeters > 0 ? formatDistance(totalMeters) + ' (full route)' : '—';
+                } else if (totalMeters > 0) {
+                    const remainingMeters = totalMeters * (1 - liveProgress);
+                    distEl.textContent = formatDistance(remainingMeters);
+                } else {
+                    distEl.textContent = 'Same location';
+                }
+            }
+
+            if (speedEl) {
+                if (!SHIPPED_STATUSES.includes(state.status_code) && state.status_code !== 'delivered') {
+                    speedEl.textContent = 'Not yet shipped';
+                } else if (state.status_code === 'delivered') {
+                    speedEl.textContent = 'Delivered';
+                } else if (totalMeters > 0 && state.estimated_delivery_at && state.pickup_scheduled_at) {
+                    const totalH = (Date.parse(state.estimated_delivery_at) - Date.parse(state.pickup_scheduled_at)) / 3600000;
+                    if (totalH > 0) speedEl.textContent = ((totalMeters / 1000) / totalH).toFixed(0) + ' km/h avg';
+                    else speedEl.textContent = '—';
+                } else {
+                    speedEl.textContent = '—';
                 }
             }
         }
@@ -471,13 +513,15 @@
             if (!next) return;
             const firstApply = state === null;
             state = next;
-            lastFetchAt = Date.now();
 
             const created = ensureMap(next);
             if (created) applyPolyline(next);
 
-            const labelEl = document.querySelector('[data-status-label]');
-            if (labelEl) labelEl.textContent = next.status_display || next.status_label || labelEl.textContent;
+            const badgeEl = document.querySelector('[data-status-badge]');
+            if (badgeEl) {
+                badgeEl.textContent = next.status_display || next.status_label || badgeEl.textContent;
+                badgeEl.setAttribute('data-status-code', next.status_code || '');
+            }
 
             const idx = STEP_ORDER[next.status_code] ?? 0;
             document.querySelectorAll('.track-step').forEach((el, i) => {
@@ -490,7 +534,7 @@
                 if (list && next.events.length) {
                     list.innerHTML = next.events.map(ev => {
                         const when = ev.occurred_at ? new Date(ev.occurred_at).toLocaleString() : '';
-                        return '<li><strong>' + escapeHtml(ev.label || ev.code || 'Event') + '</strong> <span class="muted">' + escapeHtml(when) + '</span></li>';
+                        return '<li><strong>' + escapeHtml(ev.label || ev.code || 'Event') + '</strong> <span class="track-time-muted">' + escapeHtml(when) + '</span></li>';
                     }).join('');
                 }
             }
@@ -514,15 +558,26 @@
             } catch (e) { /* swallow */ }
         }
 
+        function syncFullscreenState() {
+            const wrap = document.querySelector('[data-map-wrap]');
+            const isFs = !!document.fullscreenElement;
+            if (wrap) wrap.classList.toggle('is-fullscreen', isFs);
+            setTimeout(() => map?.invalidateSize(), 200);
+        }
+
+        function exitFullscreen() {
+            if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        }
+
         function wireControls() {
-            document.querySelectorAll('.track-ctrl-btn').forEach(btn => {
+            document.querySelectorAll('.track-ctrl-btn, .track-fs-exit').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const action = btn.getAttribute('data-action');
                     if (action === 'recenter') {
                         if (map && courierMarker) {
                             map.setView(courierMarker.getLatLng(), Math.max(map.getZoom(), 11), { animate: true });
                         } else if (map && state?.sender?.lat != null && state?.receiver?.lat != null) {
-                            map.fitBounds([[state.sender.lat, state.sender.lng], [state.receiver.lat, state.receiver.lng]], { padding: [40, 40] });
+                            map.fitBounds([[state.sender.lat, state.sender.lng], [state.receiver.lat, state.receiver.lng]], { padding: [50, 50] });
                         }
                     } else if (action === 'mylocation') {
                         if (!navigator.geolocation) { showToast('Geolocation not available'); return; }
@@ -543,10 +598,12 @@
                         const wrap = document.querySelector('[data-map-wrap]');
                         if (!wrap) return;
                         if (!document.fullscreenElement) {
-                            wrap.requestFullscreen?.().then(() => setTimeout(() => map?.invalidateSize(), 200)).catch(() => {});
+                            wrap.requestFullscreen?.().catch(() => {});
                         } else {
-                            document.exitFullscreen?.().then(() => setTimeout(() => map?.invalidateSize(), 200)).catch(() => {});
+                            exitFullscreen();
                         }
+                    } else if (action === 'exit-fullscreen') {
+                        exitFullscreen();
                     } else if (action === 'share') {
                         const url = trackUrl;
                         if (navigator.share) {
@@ -568,7 +625,10 @@
                 });
             });
 
-            document.addEventListener('fullscreenchange', () => setTimeout(() => map?.invalidateSize(), 200));
+            document.addEventListener('fullscreenchange', syncFullscreenState);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && document.fullscreenElement) exitFullscreen();
+            });
         }
 
         wireControls();
@@ -586,81 +646,151 @@
     </script>
 
     <style>
-        .track-topbar { max-width: 1100px; margin: 6px auto 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 6px; }
-        .track-back-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(191,255,0,.48); border-radius: 999px; padding: 8px 12px; color: #f0ffd3; background: linear-gradient(165deg, rgba(191,255,0,.18), rgba(191,255,0,.08)); text-decoration: none; font-weight: 600; }
-        .track-awb { font-size: 12px; color: rgba(255,255,255,.7); letter-spacing: .06em; text-transform: uppercase; }
-        .track-shell { padding: 18px; max-width: 1100px; margin: 0 auto; }
+        .track-topbar { max-width: 1100px; margin: 6px auto 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 6px; }
+        .track-back-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(191,255,0,.48); border-radius: 999px; padding: 8px 12px; color: #f0ffd3; background: linear-gradient(165deg, rgba(191,255,0,.18), rgba(191,255,0,.08)); text-decoration: none; font-weight: 600; font-size: 13px; min-height: 38px; }
+        .track-awb { font-size: 11px; color: rgba(255,255,255,.85); letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.07); padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); white-space: nowrap; }
+
+        /* White light theme card */
+        .track-shell {
+            padding: 22px;
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            color: #0f172a;
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.35);
+            border: 1px solid rgba(255,255,255,.18);
+        }
+
         .track-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 18px; flex-wrap: wrap; }
-        .track-kicker { margin: 0 0 4px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: rgba(191,255,0,.85); }
-        .track-header h2 { margin: 0 0 6px; font-size: clamp(1.2rem, 2.2vw, 1.55rem); }
-        .track-sub { margin: 0; font-size: 14px; }
-        .track-eta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; padding: 8px 14px; background: rgba(255,255,255,.03); min-width: 140px; }
-        .track-eta strong { font-size: 1rem; color: #f0ffd3; }
-        .track-progress { margin-bottom: 14px; }
-        .track-progress-line { position: relative; height: 6px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
-        .track-progress-fill { height: 100%; background: linear-gradient(90deg, #bfff00, #7c3aed); transition: width .6s cubic-bezier(.16,1,.3,1); }
+        .track-header-left { min-width: 0; flex: 1 1 240px; }
+        .track-kicker { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #16a34a; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; }
+        .track-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 0 rgba(239,68,68,.55); animation: liveDot 1.6s ease-out infinite; }
+        @keyframes liveDot { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,.55); } 70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+        .track-header h2 { margin: 0 0 8px; font-size: clamp(1.25rem, 2.4vw, 1.6rem); color: #0f172a; font-weight: 700; word-break: break-word; }
+        .track-sub { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+        .track-status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .02em; background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+        .track-status-badge[data-status-code="order_placed"], .track-status-badge[data-status-code="pickup_scheduled"] { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .track-status-badge[data-status-code="picked_up"] { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+        .track-status-badge[data-status-code="in_transit"] { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+        .track-status-badge[data-status-code="out_for_delivery"] { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+        .track-status-badge[data-status-code="delivered"] { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .track-status-badge[data-status-code="cancelled"], .track-status-badge[data-status-code="failed"] { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+        .track-eta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 18px; background: linear-gradient(165deg, #f0fdf4, #ecfeff); min-width: 150px; }
+        .track-eta span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #475569; font-weight: 800; }
+        .track-eta strong { font-size: 1.05rem; color: #15803d; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+        .track-progress { margin-bottom: 18px; }
+        .track-progress-line { position: relative; height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+        .track-progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a, #0ea5e9); background-size: 200% 100%; transition: width .6s cubic-bezier(.16,1,.3,1); animation: progressShimmer 3s linear infinite; }
+        @keyframes progressShimmer { 0% { background-position: 0% 0; } 100% { background-position: -200% 0; } }
         .track-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-        .track-step { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,.55); text-align: center; }
-        .track-step-dot { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; transition: all .25s ease; }
-        .track-step.is-active { color: #f0ffd3; }
-        .track-step.is-active .track-step-dot { background: rgba(191,255,0,.18); border-color: rgba(191,255,0,.6); color: #f0ffd3; }
-        .track-step.is-current .track-step-dot { box-shadow: 0 0 0 6px rgba(191,255,0,.15); transform: scale(1.05); }
-        .track-map-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-        .track-ctrl-btn { padding: 7px 12px; font-size: 12px; font-weight: 600; letter-spacing: .04em; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.04); color: #e6e9f0; cursor: pointer; transition: all .2s ease; }
-        .track-ctrl-btn:hover { border-color: rgba(191,255,0,.55); background: rgba(191,255,0,.08); color: #f0ffd3; }
-        .track-map-wrap { position: relative; border: 1px solid rgba(255,255,255,.14); border-radius: 14px; overflow: hidden; margin-bottom: 14px; background: #0d1015; }
-        .track-map-wrap:fullscreen { border-radius: 0; }
-        .track-map-wrap:fullscreen .track-map { height: 100vh; }
-        .track-map { height: 420px; width: 100%; background: #0d1015; }
-        .track-map .leaflet-control-attribution { background: rgba(0,0,0,.55) !important; color: rgba(255,255,255,.75) !important; }
-        .track-map .leaflet-control-attribution a { color: rgba(191,255,0,.85) !important; }
-        .track-map-note { position: absolute; bottom: 12px; left: 12px; right: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,.55); color: rgba(255,255,255,.85); font-size: 12px; pointer-events: none; }
-        .track-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
-        .track-stat { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(255,255,255,.03); }
-        .track-stat span { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: rgba(255,255,255,.6); }
-        .track-stat strong { font-size: 15px; color: #f0ffd3; font-variant-numeric: tabular-nums; }
+        .track-step { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.2; }
+        .track-step-dot { width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: #64748b; transition: all .25s ease; }
+        .track-step.is-active { color: #0f172a; font-weight: 600; }
+        .track-step.is-active .track-step-dot { background: #dcfce7; border-color: #16a34a; color: #15803d; }
+        .track-step.is-current .track-step-dot { background: linear-gradient(135deg, #22c55e, #16a34a); color: #ffffff; box-shadow: 0 0 0 6px rgba(34,197,94,.2); transform: scale(1.08); }
+
+        .track-map-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .track-ctrl-btn { padding: 9px 14px; font-size: 12px; font-weight: 600; letter-spacing: .03em; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; cursor: pointer; transition: all .2s ease; box-shadow: 0 1px 0 rgba(0,0,0,.02); min-height: 38px; white-space: nowrap; }
+        .track-ctrl-btn:hover { border-color: #16a34a; background: #f0fdf4; color: #15803d; transform: translateY(-1px); }
+        .track-ctrl-btn:active { transform: translateY(0); }
+
+        .track-map-wrap { position: relative; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; margin-bottom: 14px; background: #f8fafc; }
+        .track-map-wrap:fullscreen, .track-map-wrap.is-fullscreen { border-radius: 0; border: none; }
+        .track-map-wrap:fullscreen .track-map, .track-map-wrap.is-fullscreen .track-map { height: 100vh; }
+        .track-map { height: 440px; width: 100%; background: #e2e8f0; }
+        .track-map .leaflet-control-attribution { background: rgba(255,255,255,.85) !important; color: #475569 !important; font-size: 10px; }
+        .track-map .leaflet-control-attribution a { color: #16a34a !important; }
+        .track-map-note { position: absolute; bottom: 12px; left: 12px; right: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(15,23,42,.85); color: #ffffff; font-size: 12px; pointer-events: none; }
+
+        .track-fs-exit { display: none; position: absolute; top: 14px; left: 14px; z-index: 1000; align-items: center; gap: 6px; padding: 10px 16px; font-size: 13px; font-weight: 700; border: none; border-radius: 999px; background: rgba(15,23,42,.92); color: #ffffff; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,.4); min-height: 42px; }
+        .track-fs-exit:hover { background: #16a34a; }
+        .track-map-wrap:fullscreen .track-fs-exit, .track-map-wrap.is-fullscreen .track-fs-exit { display: inline-flex; }
+
+        .track-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+        .track-stat { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: linear-gradient(165deg, #ffffff, #f8fafc); transition: transform .2s ease, box-shadow .2s ease; }
+        .track-stat:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,.08); }
+        .track-stat span { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .track-stat strong { font-size: 15px; color: #0f172a; font-variant-numeric: tabular-nums; font-weight: 700; }
+
         .track-route-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 18px; }
-        .track-route-card { border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.02); }
-        .track-route-label { margin: 0 0 4px; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: rgba(255,255,255,.6); }
-        .track-route-address { margin: 0; font-size: 14px; line-height: 1.45; }
-        .track-events { border-top: 1px dashed rgba(255,255,255,.18); padding-top: 14px; }
-        .track-events-title { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.62); }
+        .track-route-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; background: linear-gradient(165deg, #ffffff, #f8fafc); position: relative; overflow: hidden; }
+        .track-route-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #0ea5e9; }
+        .track-route-card + .track-route-card::before { background: #16a34a; }
+        .track-route-label { margin: 0 0 6px; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .track-route-address { margin: 0; font-size: 14px; line-height: 1.45; color: #0f172a; word-break: break-word; }
+
+        .track-events { border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        .track-events-title { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; font-weight: 700; }
         #track-events-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
-        #track-events-list li { padding: 8px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; background: rgba(255,255,255,.02); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+        #track-events-list li { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: #0f172a; transition: border-color .2s ease; }
+        #track-events-list li:hover { border-color: #16a34a; }
+        .track-time-muted { color: #64748b; font-size: 12px; }
+        .track-empty { color: #64748b !important; }
 
         .courier-pin { background: transparent; border: none; }
-        .courier-pin-inner { width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #bfff00, #7c3aed); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(191,255,0,.25), 0 6px 18px rgba(0,0,0,.4); transition: transform .4s linear; }
-        .courier-pin-inner::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(191,255,0,.35); animation: courierRing 1.8s ease-out infinite; }
+        .courier-pin-inner { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #16a34a, #15803d); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(34,197,94,.25), 0 8px 24px rgba(22,163,74,.5); transition: transform .4s linear; }
+        .courier-pin-inner::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 2px solid rgba(34,197,94,.5); animation: courierRing 1.8s ease-out infinite; }
         @keyframes courierRing {
             0% { transform: scale(.7); opacity: .9; }
-            100% { transform: scale(1.6); opacity: 0; }
+            100% { transform: scale(1.7); opacity: 0; }
         }
 
         .endpoint-pin { background: transparent; border: none; }
-        .endpoint-pin-inner { width: 22px; height: 22px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; color: #0b0d12; font-weight: 800; font-size: 11px; border: 2px solid rgba(255,255,255,.85); box-shadow: 0 4px 10px rgba(0,0,0,.45); }
+        .endpoint-pin-inner { width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 800; font-size: 12px; border: 2px solid #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
         .endpoint-pin-inner > * { transform: rotate(45deg); }
 
         .mylocation-pin { background: transparent; border: none; }
-        .mylocation-dot { width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid #fff; position: absolute; top: 5px; left: 5px; z-index: 2; box-shadow: 0 0 0 2px rgba(59,130,246,.4); }
-        .mylocation-ring { position: absolute; inset: 0; border-radius: 50%; background: rgba(59,130,246,.25); animation: myPulse 2s ease-out infinite; }
+        .mylocation-dot { width: 12px; height: 12px; border-radius: 50%; background: #2563eb; border: 2px solid #fff; position: absolute; top: 5px; left: 5px; z-index: 2; box-shadow: 0 0 0 2px rgba(37,99,235,.4); }
+        .mylocation-ring { position: absolute; inset: 0; border-radius: 50%; background: rgba(37,99,235,.25); animation: myPulse 2s ease-out infinite; }
         @keyframes myPulse { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
 
-        .track-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: rgba(11,13,18,.92); color: #f0ffd3; border: 1px solid rgba(191,255,0,.4); padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s ease; z-index: 9999; pointer-events: none; }
+        .track-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: #0f172a; color: #ffffff; border: 1px solid #16a34a; padding: 12px 20px; border-radius: 999px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s ease; z-index: 9999; pointer-events: none; box-shadow: 0 12px 30px rgba(0,0,0,.5); max-width: calc(100vw - 32px); text-align: center; }
         .track-toast.is-show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        @media (max-width: 720px) {
-            .track-map { height: 300px; }
-            .track-steps { font-size: 10px; }
-            .track-step-dot { width: 24px; height: 24px; font-size: 11px; }
-            .track-ctrl-btn { padding: 6px 10px; font-size: 11px; }
+        /* Tablet */
+        @media (max-width: 900px) {
+            .track-shell { padding: 18px; }
+            .track-eta { min-width: 130px; padding: 10px 14px; }
+            .track-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .track-topbar { margin: 4px auto 10px; }
+            .track-back-btn { padding: 8px 12px; font-size: 12px; }
+            .track-awb { font-size: 10px; padding: 6px 10px; }
+            .track-shell { padding: 14px; border-radius: 14px; }
+            .track-header { gap: 12px; }
+            .track-header h2 { font-size: 1.15rem; }
+            .track-eta { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; padding: 10px 14px; min-width: 0; }
+            .track-map { height: 340px; }
+            .track-steps { gap: 2px; }
+            .track-step { font-size: 9px; gap: 4px; }
+            .track-step-dot { width: 26px; height: 26px; font-size: 11px; }
+            .track-map-controls { gap: 6px; margin-left: -14px; margin-right: -14px; padding: 0 14px 4px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            .track-map-controls::-webkit-scrollbar { display: none; }
+            .track-ctrl-btn { padding: 9px 14px; font-size: 12px; min-height: 40px; flex: 0 0 auto; }
+            .track-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .track-stat { padding: 10px 12px; }
+            .track-stat strong { font-size: 14px; }
+            .track-route-grid { grid-template-columns: 1fr; }
+            .track-fs-exit { top: 10px; left: 10px; padding: 9px 14px; font-size: 12px; min-height: 40px; }
+            #track-events-list li { padding: 10px 12px; font-size: 13px; }
+        }
+
+        /* Small phones */
+        @media (max-width: 360px) {
+            .track-stats { grid-template-columns: 1fr; }
+            .track-step span { display: none; }
         }
 
         @media print {
-            .track-topbar, .track-map-controls, .track-events, .track-back-btn { display: none !important; }
-            .track-shell { box-shadow: none !important; border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
-            .track-shell * { color: #000 !important; background: transparent !important; border-color: #ccc !important; }
+            .track-topbar, .track-map-controls, .track-events, .track-back-btn, .track-fs-exit { display: none !important; }
+            .track-shell { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
             .track-map { height: 320px !important; }
-            .track-progress-fill { background: #333 !important; }
+            .track-live-dot { animation: none !important; }
         }
     </style>
 </x-app-layout>
