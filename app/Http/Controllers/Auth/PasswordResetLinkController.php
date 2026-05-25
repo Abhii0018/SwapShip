@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Mail\PasswordResetOtpMail;
 use App\Models\User;
+use App\Services\OtpMailSender;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
@@ -56,11 +56,30 @@ class PasswordResetLinkController extends Controller
             ]
         );
 
-        Mail::to($email)->send(new PasswordResetOtpMail($user, $otp, self::OTP_EXPIRY_MINUTES));
+        $mailSent = OtpMailSender::sendPasswordReset(
+            $email,
+            (string) $user->name,
+            $otp,
+            self::OTP_EXPIRY_MINUTES
+        );
+
+        if (! $mailSent) {
+            Log::error('Password reset OTP delivery failed', [
+                'email' => $email,
+                'error' => OtpMailSender::lastErrorMessage(),
+            ]);
+
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+            return back()
+                ->withInput(['email' => $email])
+                ->withErrors(['email' => 'Could not send OTP email. '.OtpMailSender::lastErrorMessage()]);
+        }
+
         $request->session()->put('password_reset_email', $email);
 
         return back()
-            ->with('status', 'OTP sent to your email. Enter OTP and your new password below.')
+            ->with('status', 'OTP sent to your email. Check your inbox and spam folder.')
             ->with('otp_sent', true)
             ->withInput(['email' => $email]);
     }

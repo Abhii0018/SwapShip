@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\EmailVerificationOtpMail;
+use App\Mail\PasswordResetOtpMail;
 use App\Models\User;
 use App\Support\MailConfigurator;
 use Illuminate\Support\Facades\Http;
@@ -59,6 +60,60 @@ class OtpMailSender
             self::$lastError = self::humanizeError($exception->getMessage(), $mailer);
 
             Log::error('OTP verification email failed', [
+                'email' => $email,
+                'mailer' => $mailer,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    public static function sendPasswordReset(string $email, string $name, string $otp, int $expiresInMinutes = 15): bool
+    {
+        self::$lastError = null;
+        MailConfigurator::apply();
+
+        if (MailConfigurator::isRenderHost() && ! MailConfigurator::usesApiMailer()) {
+            self::$lastError = 'Render blocks Gmail SMTP. Add SENDGRID_API_KEY on Render and set MAIL_MAILER=sendgrid.';
+
+            return false;
+        }
+
+        $mailer = (string) config('mail.default');
+
+        if ($mailer === 'sendgrid') {
+            return self::sendPasswordResetViaSendGridApi($email, $name, $otp, $expiresInMinutes);
+        }
+
+        if ($mailer === 'log') {
+            self::$lastError = 'MAIL_MAILER is "log" — set MAIL_MAILER=sendgrid and SENDGRID_API_KEY on Render.';
+
+            return false;
+        }
+
+        if ($mailer === 'smtp' && ! self::smtpIsConfigured()) {
+            self::$lastError = 'SMTP credentials missing. On Render use SENDGRID_API_KEY instead.';
+
+            return false;
+        }
+
+        try {
+            $recipient = new User([
+                'name' => $name,
+                'email' => $email,
+            ]);
+
+            Mail::to($email)->send(new PasswordResetOtpMail($recipient, $otp, $expiresInMinutes));
+
+            Log::info('Password reset OTP email sent', ['email' => $email, 'mailer' => $mailer]);
+
+            return true;
+        } catch (Throwable $exception) {
+            report($exception);
+            self::$lastError = self::humanizeError($exception->getMessage(), $mailer);
+
+            Log::error('Password reset OTP email failed', [
                 'email' => $email,
                 'mailer' => $mailer,
                 'error' => $exception->getMessage(),
@@ -159,6 +214,108 @@ class OtpMailSender
             self::$lastError = self::humanizeSendGridResponse($detail, $response->status());
 
             Log::error('SendGrid API rejected OTP email', [
+                'email' => $email,
+                'from' => $fromEmail,
+                'status' => $response->status(),
+                'detail' => $detail,
+            ]);
+
+            return false;
+        } catch (Throwable $exception) {
+            report($exception);
+            self::$lastError = 'SendGrid request failed: '.$exception->getMessage();
+
+            return false;
+        }
+    }
+
+    protected static function sendPasswordResetViaSendGridApi(string $email, string $name, string $otp, int $expiresInMinutes): bool
+    {
+        $apiKey = MailConfigurator::normalizedSendgridKey();
+
+        if ($apiKey === '') {
+            self::$lastError = 'SENDGRID_API_KEY is empty on Render. Paste your SG.xxx key (no quotes).';
+
+            return false;
+        }
+
+        if (! str_starts_with($apiKey, 'SG.')) {
+            self::$lastError = 'SENDGRID_API_KEY must start with SG. Remove quotes/spaces in Render env.';
+
+            return false;
+        }
+
+        $fromEmail = trim((string) config('mail.from.address'));
+        $fromName = trim((string) config('mail.from.name', 'SwapShip'));
+
+        if ($fromEmail === '' || $fromEmail === 'hello@example.com') {
+            self::$lastError = 'MAIL_FROM_ADDRESS is not set. Please set it in your .env file to a verified SendGrid sender email.';
+
+            return false;
+        }
+
+        try {
+            $html = view('emails.auth.password-reset-otp', [
+                'name' => $name,
+                'otp' => $otp,
+                'expiresInMinutes' => $expiresInMinutes,
+            ])->render();
+        } catch (Throwable $exception) {
+            report($exception);
+            self::$lastError = 'Could not build password reset email template.';
+
+            return false;
+        }
+
+        $plainText = "Hi {$name},\n\nYour SwapShip password reset code is: {$otp}\n\nThis code expires in {$expiresInMinutes} minutes.\n\nIf you did not request this, ignore this email.";
+
+        try {
+            $response = Http::timeout(20)
+                ->withToken($apiKey)
+                ->acceptJson()
+                ->post('https://api.sendgrid.com/v3/mail/send', [
+                    'personalizations' => [
+                        [
+                            'to' => [
+                                ['email' => $email],
+                            ],
+                        ],
+                    ],
+                    'from' => [
+                        'email' => $fromEmail,
+                        'name' => $fromName,
+                    ],
+                    'reply_to' => [
+                        'email' => $fromEmail,
+                        'name' => $fromName,
+                    ],
+                    'subject' => 'SwapShip Password Reset OTP',
+                    'content' => [
+                        [
+                            'type' => 'text/plain',
+                            'value' => $plainText,
+                        ],
+                        [
+                            'type' => 'text/html',
+                            'value' => $html,
+                        ],
+                    ],
+                ]);
+
+            if ($response->status() === 202) {
+                Log::info('Password reset OTP sent via SendGrid API', ['email' => $email, 'from' => $fromEmail]);
+
+                return true;
+            }
+
+            $errors = $response->json('errors');
+            $detail = is_array($errors)
+                ? collect($errors)->pluck('message')->filter()->implode(' ')
+                : trim((string) $response->body());
+
+            self::$lastError = self::humanizeSendGridResponse($detail, $response->status());
+
+            Log::error('SendGrid API rejected password reset OTP', [
                 'email' => $email,
                 'from' => $fromEmail,
                 'status' => $response->status(),
