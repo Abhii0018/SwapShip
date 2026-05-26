@@ -58,20 +58,20 @@
         @endif
 
         <div class="shipment-meta-grid deal-meta-grid">
-            <div class="shipment-meta-pill">
+            <div class="shipment-meta-pill meta-pill--buyer">
                 <span>Buyer</span>
                 <strong>{{ $sender?->name ?? 'Buyer' }}</strong>
             </div>
-            <div class="shipment-meta-pill">
+            <div class="shipment-meta-pill meta-pill--seller">
                 <span>Seller</span>
                 <strong>{{ $receiver?->name ?? 'Seller' }}</strong>
             </div>
-            <div class="shipment-meta-pill">
+            <div class="shipment-meta-pill meta-pill--price">
                 <span>Listed price</span>
                 <strong>INR {{ number_format((float) ($item?->price ?? 0), 2) }}</strong>
             </div>
             @if($hasOrder)
-                <div class="shipment-meta-pill">
+                <div class="shipment-meta-pill meta-pill--order">
                     <span>Order</span>
                     <strong>#{{ $order->id }}</strong>
                 </div>
@@ -141,61 +141,71 @@
                 <h3>{{ $isSeller ? 'Buyer summary' : 'Your payment summary' }}</h3>
                 <p class="muted">These totals are synced from seller terms. Upfront and remaining values always match both sides.</p>
             </div>
-            <div class="shipment-breakdown-grid">
-                <div class="shipment-breakdown-pill">
+            <div class="shipment-breakdown-grid deal-breakdown-grid">
+                <div class="shipment-breakdown-pill breakdown-pill--method">
                     <span>Method</span>
                     <strong>{{ strtoupper($order->payment_method) }}</strong>
                 </div>
-                <div class="shipment-breakdown-pill">
+                <div class="shipment-breakdown-pill breakdown-pill--item">
                     <span>Item</span>
                     <strong>INR {{ number_format((float) $order->item_amount, 2) }}</strong>
                 </div>
-                <div class="shipment-breakdown-pill">
+                <div class="shipment-breakdown-pill breakdown-pill--shipping">
                     <span>Shipping</span>
                     <strong>INR {{ number_format((float) $order->shipping_amount, 2) }}</strong>
                 </div>
-                <div class="shipment-breakdown-pill">
+                <div class="shipment-breakdown-pill breakdown-pill--fee">
                     <span>Platform fee</span>
                     <strong>INR {{ number_format((float) $order->platform_fee, 2) }}</strong>
                 </div>
-                <div class="shipment-breakdown-pill is-wide">
+                <div class="shipment-breakdown-pill is-wide breakdown-pill--total">
                     <span>Total payable</span>
                     <strong>INR {{ number_format((float) $order->total_amount, 2) }}</strong>
                 </div>
                 @if($order->payment_method === 'escrow')
-                    <div class="shipment-breakdown-pill">
-                        <span>Upfront</span>
+                    <div class="shipment-breakdown-pill {{ $upfrontPaid ? 'breakdown-pill--paid' : 'breakdown-pill--due-now' }}">
+                        <span>Upfront {{ $upfrontPaid ? '· Paid' : '· Due now' }}</span>
                         <strong>INR {{ number_format((float) ($order->upfront_amount ?? 0), 2) }}</strong>
                     </div>
-                    <div class="shipment-breakdown-pill">
-                        <span>Doorstep due</span>
+                    <div class="shipment-breakdown-pill {{ !$remainingRequired ? 'breakdown-pill--na' : ($remainingPaid ? 'breakdown-pill--paid' : 'breakdown-pill--due-later') }}">
+                        <span>Doorstep due {{ !$remainingRequired ? '· Not required' : ($remainingPaid ? '· Paid' : '· On delivery') }}</span>
                         <strong>INR {{ number_format((float) ($order->remaining_amount ?? 0), 2) }}</strong>
                     </div>
                 @endif
             </div>
 
-            <div class="shipment-state-row" style="margin-top: 16px;">
-                <span class="shipment-state-pill">Payment: {{ $effectivePaymentStatus }}</span>
+            <div class="shipment-state-row deal-state-row" style="margin-top: 16px;">
+                @php
+                    $payClass = match($effectivePaymentStatus) {
+                        'paid' => 'is-paid',
+                        'partially paid' => 'is-partial',
+                        default => 'is-pending',
+                    };
+                @endphp
+                <span class="shipment-state-pill state-pill--payment {{ $payClass }}">Payment: {{ $effectivePaymentStatus }}</span>
                 @if($order->payment_method === 'escrow')
-                    <span class="shipment-state-pill">Upfront: {{ $upfrontPaid ? 'paid' : 'pending' }}</span>
-                    <span class="shipment-state-pill">
+                    <span class="shipment-state-pill state-pill--upfront {{ $upfrontPaid ? 'is-paid' : 'is-pending' }}">Upfront: {{ $upfrontPaid ? 'paid' : 'pending' }}</span>
+                    <span class="shipment-state-pill state-pill--remaining {{ ! $remainingRequired ? 'is-na' : ($remainingPaid ? 'is-paid' : 'is-pending') }}">
                         Remaining: {{ ! $remainingRequired ? 'not required' : ($remainingPaid ? 'paid' : 'pending') }}
                     </span>
                 @endif
             </div>
 
             @if(! $isSeller)
-                <div class="shipment-form-actions" style="margin-top: 16px;">
+                <div class="shipment-form-actions deal-cta-row" style="margin-top: 18px;">
                     @if($order->payment_method === 'escrow' && (! $upfrontPaid || ($remainingRequired && ! $remainingPaid)))
-                        <a class="btn btn-primary" href="{{ route('payments.checkout', $order) }}">
-                            {{ ! $upfrontPaid ? 'Pay upfront now' : 'Pay final doorstep amount' }}
+                        <a class="btn btn-primary deal-pay-cta" href="{{ route('payments.checkout', $order) }}">
+                            <span class="deal-pay-cta-label">{{ ! $upfrontPaid ? 'Pay upfront now' : 'Pay final doorstep amount' }}</span>
+                            <span class="deal-pay-cta-amount">INR {{ number_format((float) (! $upfrontPaid ? ($order->upfront_amount ?? $order->total_amount) : ($order->remaining_amount ?? 0)), 2) }}</span>
                         </a>
                     @elseif($order->payment_method === 'escrow')
-                        <span class="shipment-state-pill">All payments completed</span>
+                        <span class="shipment-state-pill is-paid">All payments completed</span>
                     @else
-                        <span class="shipment-state-pill">Pay on delivery</span>
+                        <span class="shipment-state-pill is-pending">Pay on delivery</span>
                     @endif
-                    <a class="btn" href="{{ route('shipments.index') }}">Open shipment</a>
+                    <a class="btn deal-secondary-cta" href="{{ route('shipments.index') }}">
+                        <span aria-hidden="true">→</span> Open shipment
+                    </a>
                 </div>
             @endif
         @else

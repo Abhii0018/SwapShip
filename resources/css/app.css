@@ -4692,6 +4692,251 @@ input:focus, select:focus, textarea:focus {
     font-size: 19px;
 }
 
+/* ===== Deal terms: color-coded meta + breakdown + state pills ===== */
+.deal-meta-grid .shipment-meta-pill {
+    position: relative;
+    overflow: hidden;
+}
+.deal-meta-grid .shipment-meta-pill::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+}
+.meta-pill--buyer {
+    background: linear-gradient(145deg, rgba(96,165,250,.10), rgba(255,255,255,.02)) !important;
+    border-color: rgba(96,165,250,.30) !important;
+}
+.meta-pill--buyer::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); box-shadow: 0 0 14px rgba(96,165,250,.45); }
+.meta-pill--buyer strong { color: #cfe1ff !important; text-shadow: 0 0 10px rgba(96,165,250,.18) !important; }
+
+.meta-pill--seller {
+    background: linear-gradient(145deg, rgba(167,139,250,.10), rgba(255,255,255,.02)) !important;
+    border-color: rgba(167,139,250,.30) !important;
+}
+.meta-pill--seller::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); box-shadow: 0 0 14px rgba(167,139,250,.45); }
+.meta-pill--seller strong { color: #ddd1ff !important; text-shadow: 0 0 10px rgba(167,139,250,.18) !important; }
+
+.meta-pill--price {
+    background: linear-gradient(145deg, rgba(191,255,0,.12), rgba(255,255,255,.02)) !important;
+    border-color: rgba(191,255,0,.35) !important;
+}
+.meta-pill--price::before { background: linear-gradient(180deg, #d6ff4d, #bfff00); box-shadow: 0 0 14px rgba(191,255,0,.5); }
+
+.meta-pill--order {
+    background: linear-gradient(145deg, rgba(248,191,67,.10), rgba(255,255,255,.02)) !important;
+    border-color: rgba(248,191,67,.30) !important;
+}
+.meta-pill--order::before { background: linear-gradient(180deg, #fbbf24, #f59e0b); box-shadow: 0 0 14px rgba(248,191,67,.45); }
+.meta-pill--order strong { color: #ffe4a8 !important; text-shadow: 0 0 10px rgba(248,191,67,.18) !important; }
+
+/* Breakdown pills: differentiate context */
+.deal-breakdown-grid .shipment-breakdown-pill {
+    background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015)) !important;
+    border-color: rgba(255,255,255,.10) !important;
+}
+.deal-breakdown-grid .shipment-breakdown-pill strong {
+    color: #fff !important;
+    text-shadow: none !important;
+}
+.breakdown-pill--method strong {
+    font-family: var(--font-mono) !important;
+    letter-spacing: .18em !important;
+    color: #d8ff67 !important;
+    font-size: 15px !important;
+}
+.breakdown-pill--total {
+    background: linear-gradient(135deg, rgba(191,255,0,.22), rgba(191,255,0,.07)) !important;
+    border-color: rgba(191,255,0,.55) !important;
+    box-shadow:
+        0 12px 32px rgba(191,255,0,.16),
+        inset 0 0 0 1px rgba(191,255,0,.18) !important;
+}
+.breakdown-pill--total span { color: rgba(255,255,255,.78) !important; font-weight: 600 !important; }
+.breakdown-pill--total strong {
+    color: #e7ffaa !important;
+    font-size: 22px !important;
+    text-shadow: 0 0 18px rgba(191,255,0,.35) !important;
+}
+
+.breakdown-pill--due-now {
+    background: linear-gradient(135deg, rgba(248,191,67,.18), rgba(248,191,67,.05)) !important;
+    border-color: rgba(248,191,67,.5) !important;
+    box-shadow: 0 8px 22px rgba(248,191,67,.12), inset 0 0 0 1px rgba(248,191,67,.15) !important;
+}
+.breakdown-pill--due-now span { color: #ffdc8a !important; }
+.breakdown-pill--due-now strong { color: #ffe4a8 !important; }
+
+.breakdown-pill--due-later {
+    background: linear-gradient(135deg, rgba(96,165,250,.14), rgba(96,165,250,.04)) !important;
+    border-color: rgba(96,165,250,.45) !important;
+}
+.breakdown-pill--due-later span { color: #cfe1ff !important; }
+.breakdown-pill--due-later strong { color: #e7f1ff !important; }
+
+.breakdown-pill--paid {
+    background: linear-gradient(135deg, rgba(74,222,128,.16), rgba(74,222,128,.04)) !important;
+    border-color: rgba(74,222,128,.5) !important;
+    position: relative;
+}
+.breakdown-pill--paid span { color: #bbf7d0 !important; }
+.breakdown-pill--paid strong { color: #d6ffe2 !important; }
+.breakdown-pill--paid::after {
+    content: "✓";
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    color: #042f15;
+    font-weight: 800;
+    font-size: 12px;
+    box-shadow: 0 4px 10px rgba(74,222,128,.4);
+}
+
+.breakdown-pill--na {
+    background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)) !important;
+    border-color: rgba(255,255,255,.10) !important;
+    opacity: .65;
+}
+.breakdown-pill--na span { color: rgba(255,255,255,.45) !important; }
+.breakdown-pill--na strong { color: rgba(255,255,255,.55) !important; }
+
+/* Status pills (Payment / Upfront / Remaining) */
+.deal-state-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.shipment-state-pill.is-paid {
+    background: linear-gradient(135deg, rgba(74,222,128,.18), rgba(74,222,128,.06)) !important;
+    border-color: rgba(74,222,128,.55) !important;
+    color: #bbf7d0 !important;
+    box-shadow: 0 4px 14px rgba(74,222,128,.14);
+}
+.shipment-state-pill.is-pending {
+    background: linear-gradient(135deg, rgba(248,191,67,.18), rgba(248,191,67,.06)) !important;
+    border-color: rgba(248,191,67,.5) !important;
+    color: #ffdc8a !important;
+    box-shadow: 0 4px 14px rgba(248,191,67,.12);
+}
+.shipment-state-pill.is-partial {
+    background: linear-gradient(135deg, rgba(96,165,250,.16), rgba(96,165,250,.05)) !important;
+    border-color: rgba(96,165,250,.5) !important;
+    color: #cfe1ff !important;
+}
+.shipment-state-pill.is-na {
+    background: rgba(255,255,255,.04) !important;
+    border-color: rgba(255,255,255,.12) !important;
+    color: rgba(255,255,255,.55) !important;
+    box-shadow: none !important;
+}
+.shipment-state-pill {
+    font-family: var(--font-mono);
+    font-size: 10.5px !important;
+    font-weight: 600;
+    letter-spacing: .18em !important;
+    text-transform: uppercase;
+    padding: 8px 14px !important;
+    border-radius: 999px !important;
+}
+
+/* CTA row */
+.deal-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
+}
+.deal-pay-cta {
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: flex-start !important;
+    justify-content: center;
+    gap: 2px !important;
+    padding: 12px 22px !important;
+    border-radius: 14px !important;
+    min-height: 58px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #d6ff4d 0%, var(--accent) 50%, #a8e600 100%) !important;
+    color: #061100 !important;
+    box-shadow:
+        0 14px 32px rgba(191,255,0,.42),
+        inset 0 1px 0 rgba(255,255,255,.55) !important;
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+.deal-pay-cta::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,.4) 50%, transparent 60%);
+    transform: translateX(-100%);
+    animation: deal-cta-shimmer 3.6s ease-in-out infinite;
+}
+@keyframes deal-cta-shimmer {
+    0%, 70%, 100% { transform: translateX(-100%); }
+    90% { transform: translateX(120%); }
+}
+.deal-pay-cta:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 18px 38px rgba(191,255,0,.55),
+        inset 0 1px 0 rgba(255,255,255,.7) !important;
+}
+.deal-pay-cta-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 14.5px;
+    letter-spacing: -0.005em;
+}
+.deal-pay-cta-amount {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    color: rgba(6,17,0,.7);
+}
+
+.deal-secondary-cta {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 12px 18px !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.015)) !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    color: rgba(255,255,255,.92) !important;
+    font-family: var(--font-display);
+    font-weight: 600 !important;
+    min-height: 58px;
+    transition: transform .25s ease, border-color .25s ease, background .25s ease;
+}
+.deal-secondary-cta:hover {
+    transform: translateY(-2px);
+    border-color: rgba(191,255,0,.4) !important;
+    background: linear-gradient(135deg, rgba(191,255,0,.08), rgba(191,255,0,.02)) !important;
+    color: var(--accent) !important;
+}
+
+@media (max-width: 640px) {
+    .deal-cta-row .deal-pay-cta,
+    .deal-cta-row .deal-secondary-cta {
+        width: 100%;
+        min-height: 54px;
+    }
+    .deal-pay-cta-label { font-size: 13.5px; }
+    .deal-pay-cta-amount { font-size: 11px; }
+    .breakdown-pill--total strong { font-size: 18px !important; }
+    .breakdown-pill--paid::after { top: 8px; right: 10px; width: 20px; height: 20px; font-size: 11px; }
+}
+
 .shipment-form-actions {
     display: flex;
     gap: 12px;
