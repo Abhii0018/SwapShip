@@ -13,7 +13,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 class SocialAuthController extends Controller
 {
-    public function redirectToGoogle(): RedirectResponse
+    public function redirectToGoogle(Request $request): RedirectResponse
     {
         if (! config('services.google.client_id') || ! config('services.google.client_secret')) {
             return redirect()->route('login')->withErrors([
@@ -21,13 +21,29 @@ class SocialAuthController extends Controller
             ]);
         }
 
-        return Socialite::driver('google')->redirect();
+        $driver = Socialite::driver('google');
+
+        // Dynamically override redirect URL in local environment when accessing via localhost/127.0.0.1
+        if (config('app.env') === 'local' && in_array($request->getHost(), ['localhost', '127.0.0.1'])) {
+            $port = $request->getPort() ? ':' . $request->getPort() : '';
+            $driver->redirectUrl("http://{$request->getHost()}{$port}/auth/google/callback");
+        }
+
+        return $driver->redirect();
     }
 
     public function handleGoogleCallback(Request $request): RedirectResponse
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $driver = Socialite::driver('google');
+
+            // Dynamically override redirect URL in local environment when accessing via localhost/127.0.0.1
+            if (config('app.env') === 'local' && in_array($request->getHost(), ['localhost', '127.0.0.1'])) {
+                $port = $request->getPort() ? ':' . $request->getPort() : '';
+                $driver->redirectUrl("http://{$request->getHost()}{$port}/auth/google/callback");
+            }
+
+            $googleUser = $driver->user();
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Google OAuth callback error', [
                 'error' => $e->getMessage(),

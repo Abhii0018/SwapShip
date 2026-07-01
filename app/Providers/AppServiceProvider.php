@@ -64,7 +64,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Cloudflare tunnel terminates TLS before forwarding to local HTTP.
         // Force HTTPS, but keep host dynamic from the incoming request.
-        if ($appUrl !== '' && str_starts_with($appUrl, 'https://')) {
+        if ($appUrl !== '' && str_starts_with($appUrl, 'https://') && !in_array(request()->getHost(), ['localhost', '127.0.0.1'])) {
             URL::forceScheme('https');
             config(['session.secure' => true]);
         }
