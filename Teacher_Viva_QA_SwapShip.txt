@@ -1,0 +1,165 @@
+SwapShip Viva Preparation - Teacher Questions and Answers
+
+Use this as a short speaking guide in presentation.
+
+============================================================
+1) PROJECT OVERVIEW
+============================================================
+
+Q: What problem does SwapShip solve?
+A: It enables users to swap or sell second-hand items with chat, payments, and shipment tracking in one platform.
+
+Q: Why not just a normal buy/sell app?
+A: SwapShip supports both exchange and sell workflows, reducing cost and waste.
+
+Q: End-to-end user flow?
+A: Register -> Email OTP verify -> List item -> Exchange request/chat -> Confirm deal -> Razorpay payment -> Shipment -> Delivery OTP -> Complete.
+
+============================================================
+2) AUTHENTICATION & SECURITY
+============================================================
+
+Q: Why OTP verification?
+A: To prevent fake signups and ensure only verified users become active accounts.
+
+Q: Why are passwords secure?
+A: Passwords are hashed (bcrypt) and never stored in plain text.
+
+Q: How is login protected from brute-force attacks?
+A: Login has rate limiting (attempt limits per email/IP), plus OTP checks for sensitive flows.
+
+Q: Why regenerate session after login?
+A: To prevent session fixation attacks.
+
+Q: CSRF protection?
+A: Laravel CSRF middleware + token validation on POST forms.
+
+============================================================
+3) USER DATA & IMAGE STORAGE
+============================================================
+
+Q: Where is user data stored?
+A: PostgreSQL (`users` table + related tables).
+
+Q: Where are listing images stored?
+A: Cloudinary stores actual files; database stores image URLs in `item_images`.
+
+Q: Why Cloudinary instead of server filesystem?
+A: Better CDN delivery, persistent storage, and image handling for production.
+
+Q: What if Cloudinary upload fails?
+A: Code has fallback to local storage for resilience.
+
+============================================================
+4) ITEMS, EXCHANGE REQUESTS, CHAT
+============================================================
+
+Q: How is item availability managed?
+A: `sold_at` is null for available items; once sold, `sold_at` is set and new requests are blocked.
+
+Q: How do exchange requests work?
+A: Users create requests on items, owner accepts/rejects, and accepted requests move into active negotiation/chat.
+
+Q: Is chat secure?
+A: Only participants (sender/receiver of that exchange request) can access that conversation.
+
+Q: How does unread/read status work?
+A: Messages have `read_at`; unread counts are computed from DB.
+
+Q: Typing and presence?
+A: Managed with cache keys and periodic client updates.
+
+============================================================
+5) RAZORPAY PAYMENTS
+============================================================
+
+Q: Basic Razorpay flow?
+A: Server creates Razorpay order -> frontend opens checkout -> payment IDs/signature return -> backend verifies signature -> marks payment stage paid.
+
+Q: Why amount in paise?
+A: Razorpay API expects smallest currency unit; avoids floating precision issues.
+
+Q: How is signature verified?
+A: HMAC SHA256 verification using Razorpay secret and secure compare.
+
+Q: Why webhook as well?
+A: Webhook confirms payment even if user closes browser after paying.
+
+Q: What happens after successful payment?
+A: Order is updated, exchange/payment state is propagated, and item gets marked sold.
+
+============================================================
+6) SHIPMENTS & DELIVERY OTP
+============================================================
+
+Q: How shipping is integrated?
+A: Through a shipping service abstraction (`ShippingProviderInterface`) with current mock provider and event timeline.
+
+Q: Why provider interface?
+A: Easy to switch from mock to real shipping provider without changing business flow.
+
+Q: Delivery safety mechanism?
+A: Delivery OTP verification before final handover confirmation.
+
+Q: SMS/notifications traceability?
+A: OTP/SMS actions are audited in logs/tables (e.g., sms audit log).
+
+============================================================
+7) ADMIN FEATURES
+============================================================
+
+Q: What can admin do?
+A: View dashboard insights, monitor users/items/transactions, and take moderation actions.
+
+Q: How admin accounts are identified?
+A: Via configured admin emails and role checks.
+
+Q: Extra admin security?
+A: Admin login includes OTP step before dashboard access.
+
+============================================================
+8) DEPLOYMENT & OPERATIONS
+============================================================
+
+Q: Where is app deployed?
+A: Render (web service + PostgreSQL database).
+
+Q: Environment separation?
+A: Local `.env` is separate from Render production env variables.
+
+Q: Why config-driven architecture?
+A: Easy environment changes without code edits.
+
+Q: How to inspect production data?
+A: Connect pgAdmin to Render external database URL with SSL required.
+
+============================================================
+9) PERFORMANCE & RELIABILITY
+============================================================
+
+Q: How do you avoid N+1 query issues?
+A: Use Eloquent eager loading (`with(...)`) on related models.
+
+Q: Pagination strategy?
+A: List pages use pagination to avoid heavy full-table responses.
+
+Q: What happens on partial failures?
+A: Try-catch around external APIs with logging and safe user messages/fallbacks.
+
+============================================================
+10) IMPROVEMENTS YOU CAN SAY IN VIVA
+============================================================
+
+1. Add more automated tests (feature + integration).
+2. Replace mock shipping with real provider integration.
+3. Move chat attachments fully to cloud object storage.
+4. Add advanced fraud checks for payments and abuse reports.
+5. Improve analytics dashboard and alerting.
+
+============================================================
+FAST REVISION (30-SECOND SUMMARY)
+============================================================
+
+SwapShip is a Laravel + PostgreSQL platform for swapping/selling items.
+It uses OTP-based secure onboarding, Cloudinary for listing images, request-based chat negotiation, Razorpay with signature/webhook verification, and shipping + delivery OTP workflows.
+The architecture uses clear models, service abstractions, and secure validation patterns for production-ready flow.
