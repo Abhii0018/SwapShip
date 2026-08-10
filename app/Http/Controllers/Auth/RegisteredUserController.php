@@ -7,10 +7,10 @@ use App\Models\User;
 use App\Support\AdminAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Throwable;
 
 class RegisteredUserController extends Controller
 {
@@ -40,41 +40,24 @@ class RegisteredUserController extends Controller
             'role' => ['required', 'in:user'],
         ]);
 
-        try {
-            $pendingToken = EmailOtpVerificationController::beginPendingRegistration($request, [
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => $request->password,
-                'phone' => $request->phone,
-                'role' => AdminAccount::isAdminEmail($request->email) ? 'admin' : 'user',
-            ]);
-        } catch (Throwable $exception) {
-            report($exception);
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $request->password,
+            'phone' => $request->phone,
+            'role' => AdminAccount::isAdminEmail($request->email) ? 'admin' : 'user',
+            'email_verified_at' => now(),
+            'is_verified' => true,
+        ]);
 
-            return back()
-                ->withInput()
-                ->withErrors(['email' => 'Registration could not be started. Please try again in a moment.']);
-        }
+        AdminAccount::syncRole($user);
 
-        $mailSent = (bool) $request->session()->get('otp_mail_sent', false);
+        Auth::login($user, true);
+        $request->session()->regenerate();
+        AdminAccount::markSessionStarted($request);
 
-        $response = redirect()->route('otp.verify.notice')
-            ->with(
-                'status',
-                $mailSent
-                    ? 'We sent a 6-digit OTP to your email. Check inbox and spam.'
-                    : null
-            )
-            ->with(
-                'mail_error',
-                $mailSent ? null : (string) $request->session()->get('otp_mail_error', 'OTP email could not be sent. Check MAIL_* on Render.')
-            );
-
-        $cookie = EmailOtpVerificationController::pendingCookie($pendingToken);
-        if ($cookie) {
-            $response->withCookie($cookie);
-        }
-
-        return $response;
+        return redirect()
+            ->to(AdminAccount::homeRouteFor($user))
+            ->with('success', 'Account created successfully.');
     }
 }
