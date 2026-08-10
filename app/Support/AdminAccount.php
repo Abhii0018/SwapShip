@@ -42,7 +42,7 @@ class AdminAccount
     }
 
     /**
-     * Admin accounts always require email OTP after password or Google sign-in.
+     * Admin accounts still use OTP for Google sign-in flows.
      */
     public static function requiresLoginOtp(User $user): bool
     {

@@ -28,28 +28,6 @@ class AuthenticatedSessionController extends Controller
         $user = $request->user();
         AdminAccount::syncRole($user);
 
-        // Admin: password OK → email OTP → admin dashboard (every login).
-        if (AdminAccount::requiresLoginOtp($user)) {
-            Auth::logout();
-            $request->session()->put('pending_otp_user_id', $user->id);
-            $request->session()->put('admin_login_otp', true);
-            EmailOtpVerificationController::issueOtp($user);
-
-            return redirect()
-                ->route('otp.verify.notice')
-                ->with('status', 'Password verified. Enter the 6-digit OTP sent to your email to open the admin dashboard.');
-        }
-
-        if (! $user->hasVerifiedEmail() || ! $user->is_verified) {
-            Auth::logout();
-            $request->session()->put('pending_otp_user_id', $user->id);
-            EmailOtpVerificationController::issueOtp($user);
-
-            return redirect()
-                ->route('otp.verify.notice')
-                ->with('status', 'Enter the OTP sent to your email. It may take up to a minute to arrive.');
-        }
-
         $request->session()->regenerate();
         AdminAccount::markSessionStarted($request);
 
